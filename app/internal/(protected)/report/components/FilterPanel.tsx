@@ -103,7 +103,7 @@ export function FilterPanel({
             </div>
           </div>
           <div className="flex flex-col gap-1 relative" ref={dropdownRef}>
-            <label className="text-sm font-medium text-gray-700">거래처 검색</label>
+            <label className="text-sm font-medium text-gray-700">거래처 검색 (자동완성)</label>
             <input
               ref={customerInputRef}
               type="text"
@@ -113,7 +113,7 @@ export function FilterPanel({
                 onCustomerSelect(null);
               }}
               onFocus={handleCustomerFocus}
-              placeholder="코드 또는 이름 검색"
+              placeholder="코드 또는 이름 입력 시 자동완성"
               className="min-w-[320px] w-full max-w-md px-3 py-2 border border-gray-300 rounded text-sm"
             />
             {options.length > 0 && (

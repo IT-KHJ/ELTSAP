@@ -20,11 +20,7 @@ export default function ReportPage() {
   const [data, setData] = useState<ReportData | null>(null);
 
   const searchCustomers = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setOptions([]);
-      return;
-    }
-    const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`/api/customers?q=${encodeURIComponent(q.trim())}`);
     const list = (await res.json()) as CustomerOption[];
     setOptions(list);
   }, []);
