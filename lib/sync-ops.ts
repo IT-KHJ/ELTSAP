@@ -8,12 +8,11 @@ import { BATCH_SIZE } from "./constants";
 import type { CustomerRow, ItemlistRow, SalesRow, InamtRow, SaleetcRow } from "@/types/database";
 import type { SyncResult } from "@/types/sync";
 
-const admin = getSupabaseAdmin();
-
 export async function upsertCustomerBatch(
   data: CustomerRow[],
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
   let inserted = 0;
   let updated = 0;
   const total = data.length;
@@ -35,6 +34,7 @@ export async function upsertItemlistBatch(
   data: ItemlistRow[],
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
   let inserted = 0;
   const total = data.length;
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
@@ -54,6 +54,7 @@ export async function upsertSalesBatch(
   data: Array<Omit<SalesRow, "id"> & { linenum?: number }>,
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
   const rows: Omit<SalesRow, "id">[] = data.map((r, idx) => ({
     docentry: r.docentry,
     linenum: r.linenum ?? idx % 100000,
@@ -85,6 +86,7 @@ export async function upsertInamtBatch(
   data: InamtRow[],
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
   let inserted = 0;
   const total = data.length;
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
@@ -104,6 +106,7 @@ export async function upsertSaleetcBatch(
   data: Array<Omit<SaleetcRow, "id"> & { linenum?: number }>,
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
   const rows: Omit<SaleetcRow, "id">[] = data.map((r, idx) => ({
     docentry: r.docentry,
     linenum: r.linenum ?? idx % 100000,
