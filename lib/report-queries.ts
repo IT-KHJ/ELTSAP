@@ -383,14 +383,13 @@ export async function getTopBrands(
   if (allCodes.size === 0) return [];
 
   const codesArr = Array.from(allCodes);
-  const itemToBrand: Record<string, string> = {}; // itemgb = '0101' 인 품목만 포함
+  const itemToBrand: Record<string, string> = {};
   for (let i = 0; i < codesArr.length; i += ITEMLIST_BATCH_SIZE) {
     const chunk = codesArr.slice(i, i + ITEMLIST_BATCH_SIZE);
     const { data: itemsRaw } = await admin
       .from("ITEMLIST")
       .select("itemcode, brand")
-      .in("itemcode", chunk)
-      .eq("itemgb", "0101");
+      .in("itemcode", chunk);
     type ItemBrandRow = { itemcode: string; brand: string | null };
     (itemsRaw ?? []).forEach((r: ItemBrandRow) => {
       const code = (r.itemcode ?? "").trim();
@@ -403,8 +402,8 @@ export async function getTopBrands(
   current.forEach((r) => {
     const code = (r.itemcode ?? "").trim();
     const key = code.toUpperCase();
-    if (!itemToBrand[key]) return; // itemgb '0101' 품목만 집계
-    const brand = itemToBrand[key];
+    if (!key) return;
+    const brand = itemToBrand[key] ?? "미지정";
     const qty = Number(r.quantity);
     const add = Number.isNaN(qty) ? 0 : qty;
     curSum[brand] = (curSum[brand] ?? 0) + add;
@@ -413,8 +412,8 @@ export async function getTopBrands(
   previous.forEach((r) => {
     const code = (r.itemcode ?? "").trim();
     const key = code.toUpperCase();
-    if (!itemToBrand[key]) return; // itemgb '0101' 품목만 집계
-    const brand = itemToBrand[key];
+    if (!key) return;
+    const brand = itemToBrand[key] ?? "미지정";
     const qty = Number(r.quantity);
     const add = Number.isNaN(qty) ? 0 : qty;
     prevSum[brand] = (prevSum[brand] ?? 0) + add;

@@ -1,15 +1,18 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { SessionMonitor } from './components/SessionMonitor';
 import { LogoutButton } from './components/LogoutButton';
 import { ModalProvider } from '@/lib/components/ModalProvider';
 
-const navItems = [
-  { label: '대시보드', href: '/internal', icon: '📊' },
-  { label: '거래처 현황 보고서', href: '/internal/report', icon: '📄' },
-  { label: '동기화', href: '/internal/sync', icon: '🔄' },
-];
+function getNavItems(isAdmin: boolean) {
+  const items = [
+    { label: '거래처 현황 보고서', href: '/internal/report', icon: '📄', adminOnly: false },
+    { label: '동기화', href: '/internal/sync', icon: '🔄', adminOnly: true },
+  ];
+  return items.filter((item) => !item.adminOnly || isAdmin);
+}
 
 async function getAuthenticatedUser() {
   try {
@@ -19,7 +22,13 @@ async function getAuthenticatedUser() {
     if (session.expires_at && Date.now() >= session.expires_at * 1000) return null;
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return null;
-    return { user };
+    const isAdmin =
+      (user.user_metadata?.role === 'admin') ||
+      (user.app_metadata?.role === 'admin') ||
+      (process.env.ADMIN_EMAILS && user.email
+        ? process.env.ADMIN_EMAILS.split(',').map((e) => e.trim()).includes(user.email)
+        : false);
+    return { user, isAdmin };
   } catch (error) {
     console.error('[Auth] getAuthenticatedUser:', error);
     return null;
@@ -34,7 +43,8 @@ export default async function ProtectedLayout({
   const auth = await getAuthenticatedUser();
   if (!auth) redirect('/internal/login');
 
-  const { user } = auth;
+  const { user, isAdmin } = auth;
+  const navItems = getNavItems(isAdmin);
 
   return (
     <ModalProvider>
@@ -42,9 +52,16 @@ export default async function ProtectedLayout({
       <div className="flex min-h-screen bg-gray-50">
         <aside className="print-hide w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 h-screen fixed">
           <div className="h-16 flex items-center px-6 border-b border-gray-200 shrink-0">
-            <Link href="/internal" className="flex items-center gap-2">
-              <span className="text-2xl">📊</span>
-              <span className="font-bold text-gray-900">ELT 총판 현황</span>
+            <Link href="/internal/report" className="flex items-center gap-3">
+              <Image
+                src="/ne-ci-logo.png"
+                alt="NE능률"
+                width={52}
+                height={36}
+                className="object-contain shrink-0"
+                priority
+              />
+              <span className="font-bold text-gray-900 text-sm">ELT SAP 데이터</span>
             </Link>
           </div>
           <nav className="flex-1 py-4 overflow-y-auto">

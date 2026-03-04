@@ -29,6 +29,96 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 요약: 구분·증감 가운데 정렬, (단위: 원, %) 우측 정렬 */
+.report-summary-table .report-th:nth-child(1),
+.report-summary-table .report-td:nth-child(1),
+.report-summary-table .report-th:nth-child(4),
+.report-summary-table .report-td:nth-child(4) {
+  text-align: center;
+}
+.report-summary-unit {
+  text-align: right;
+}
+
+/* Total 컬럼 가운데 정렬 */
+.report-td-total {
+  text-align: center !important;
+}
+
+.report-section {
+  margin-top: 28px;
+}
+.report-section:first-of-type {
+  margin-top: 24px;
+}
+
+/* B&G / OUP 매출 구분 */
+.report-sales-category-bg {
+  background: #fef3f2 !important; /* 연한 빨강 톤 */
+}
+.report-sales-category-oup {
+  background: #f0f9ff !important; /* 연한 파랑 톤 */
+}
+
+/* 통합 테이블: 주요 범주·구분 컬럼 */
+.report-unified-table .report-td-category {
+  vertical-align: middle;
+  text-align: center;
+  font-weight: 600;
+}
+.report-unified-table .report-th-gubun,
+.report-unified-table .report-td-gubun {
+  text-align: left;
+  padding-left: 10px;
+}
+/* B&G/OUP/채권/증정수량 블록 사이 구분 행 (기존 행 높이의 절반) */
+.report-row-spacer .report-td-spacer {
+  padding: 5px 8px;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+/* 주요품목 판매 현황 좌우 동일 크기 */
+.report-topbrands-split td {
+  vertical-align: top;
+}
+
+/* 주요품목 판매 현황: 컬럼 넓이 */
+.report-topbrands-narrow.report-table {
+  font-size: 12px;
+  table-layout: fixed;
+}
+.report-topbrands-narrow .report-th-narrow,
+.report-topbrands-narrow .report-td-narrow {
+  padding: 6px 6px;
+}
+.report-topbrands-narrow .report-th-narrow:nth-child(1),
+.report-topbrands-narrow .report-td-narrow:nth-child(1) {
+  width: var(--brand-col-width, 80px);
+}
+.report-topbrands-narrow .report-th-narrow:nth-child(2),
+.report-topbrands-narrow .report-th-narrow:nth-child(3),
+.report-topbrands-narrow .report-th-narrow:nth-child(4),
+.report-topbrands-narrow .report-td-narrow:nth-child(2),
+.report-topbrands-narrow .report-td-narrow:nth-child(3),
+.report-topbrands-narrow .report-td-narrow:nth-child(4) {
+  width: auto;
+  white-space: nowrap;
+}
+
+/* 주요품목 판매 현황: 기간별 수량·증감 가운데 정렬 */
+.report-topbrands .report-td:nth-child(2),
+.report-topbrands .report-td:nth-child(3),
+.report-topbrands .report-td:nth-child(4) {
+  text-align: center;
+}
+.report-topbrands .report-th:nth-child(2),
+.report-topbrands .report-th:nth-child(3),
+.report-topbrands .report-th:nth-child(4) {
+  text-align: center;
+}
+
 .report-row-even {
   background: #fafafa;
 }
@@ -45,13 +135,22 @@
   color: #2563eb;
 }
 
-.report-section {
-  margin-top: 32px;
+/* 조회기간 해당 데이터 bold */
+.report-row-current td,
+.report-td-current {
+  font-weight: 700;
 }
 
-.report-section:first-child {
-  margin-top: 0;
+/* 채권 행: 높이 축소, bold 제외 */
+.report-row-inamt .report-td {
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
+/* 채권 실제 입금액 행만 배경색 */
+.report-row-inamt-highlight {
+  background: #fafafa;
+}
+
 
 .report-kpi-box {
   flex-shrink: 0;
@@ -68,11 +167,6 @@
   background: #f5f6f7;
 }
 
-/* 특이사항: 화면에서만 textarea 표시 */
-.report-note-input.print-hide-on-print {
-  /* used in JSX for clarity; print rule below hides it */
-}
-
 /* ========== Print Mode: 화면 UI와 인쇄 UI 분리 ========== */
 
 @media print {
@@ -83,19 +177,8 @@
 
   /* 숨김: Filter Panel, Sidebar, Header Navigation */
   .filter-panel-no-print,
-  .print-hide,
-  .report-note-input {
+  .print-hide {
     display: none !important;
-  }
-
-  /* 인쇄 시 특이사항은 print-only 블록만 표시 */
-  .report-print-note.print-only {
-    display: block !important;
-    min-height: 120px;
-    border: 1px solid #333;
-    padding: 12px;
-    white-space: pre-wrap;
-    background: #fff;
   }
 
   .report-table,
@@ -134,9 +217,28 @@
     color: #1d4ed8;
   }
 
+  .report-row-current td,
+  .report-td-current {
+    font-weight: 700;
+  }
+
+  .report-row-inamt .report-td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  .report-row-inamt-highlight {
+    background: #f9fafb;
+  }
+
   .report-kpi-box {
     border: 1px solid #333;
     background: #fafafa;
+  }
+
+  .report-row-spacer .report-td-spacer {
+    padding: 2px 6px;
+    border-top: 1px solid #333;
   }
 }
 

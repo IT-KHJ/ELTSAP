@@ -3,7 +3,7 @@
 import { useState, useCallback, Fragment } from "react";
 import type { ReportData } from "@/types/report";
 import { formatAmount, formatChangePercent } from "@/lib/format";
-import { MONTHS } from "@/lib/constants";
+import { MONTHS, CATEGORY_BG, CATEGORY_OUP } from "@/lib/constants";
 import { FilterPanel, type CustomerOption } from "./components/FilterPanel";
 import { ReportContainer } from "./components/ReportContainer";
 import "./report-print.css";
@@ -18,7 +18,6 @@ export default function ReportPage() {
   const [options, setOptions] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ReportData | null>(null);
-  const [specialNote, setSpecialNote] = useState("");
 
   const searchCustomers = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -79,10 +78,20 @@ export default function ReportPage() {
   const currPeriodShort = data
     ? `${data.startDate.slice(0, 4)}년 ${parseMonth(data.startDate)}월~${parseMonth(data.endDate)}월`
     : "";
+  /** 주요품목 판매 현황용 연도만 표기 (예: "2024년", "2025년") */
+  const prevYearLabel = data ? `${data.previousStartDate.slice(0, 4)}년` : "";
+  const currYearLabel = data ? `${data.startDate.slice(0, 4)}년` : "";
 
   const monthCols = MONTHS.map((m) => (
     <th key={m} className="report-th" style={{ width: "4%" }}>{m}월</th>
   ));
+
+  /** B&G/OUP/채권/증정수량 블록 사이 구분용 빈 행 (기존 행 높이의 절반) */
+  const SpacerRow = () => (
+    <tr className="report-row-spacer">
+      <td colSpan={15} className="report-td-spacer" />
+    </tr>
+  );
 
   return (
     <div className="report-page">
@@ -127,7 +136,7 @@ export default function ReportPage() {
               <table className="report-summary-table text-sm w-full table-fixed">
                 <thead>
                   <tr className="bg-[#f5f6f7]">
-                    <th className="report-th py-2.5 px-4 text-left font-semibold w-20">구분</th>
+                    <th className="report-th py-2.5 px-4 font-semibold w-20">구분</th>
                     <th className="report-th py-2.5 px-4 font-semibold">{prevPeriodShort}</th>
                     <th className="report-th py-2.5 px-4 font-semibold">{currPeriodShort}</th>
                     <th className="report-th py-2.5 px-4 font-semibold w-24">증감</th>
@@ -137,54 +146,55 @@ export default function ReportPage() {
                   <tr>
                     <td className="report-td py-2.5 px-4">매출</td>
                     <td className="report-td report-td-num py-2.5 px-4">{formatAmount(data.summary.totalPrevious)}</td>
-                    <td className="report-td report-td-num py-2.5 px-4">{formatAmount(data.summary.totalCurrent)}</td>
-                    <td className={`report-td report-td-num py-2.5 px-4 ${data.summary.changePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
+                    <td className="report-td report-td-num report-td-current py-2.5 px-4">{formatAmount(data.summary.totalCurrent)}</td>
+                    <td className={`report-td report-td-current py-2.5 px-4 ${data.summary.changePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
                       {data.summary.changePercent !== "-" && (data.summary.changePercent.includes("-") ? "▼" : "▲")}
                       {data.summary.changePercent}
                     </td>
                   </tr>
                 </tbody>
               </table>
-              <p className="text-xs text-gray-500 px-4 py-2">(단위 : 원, %)</p>
+              <p className="report-summary-unit text-xs text-gray-500 px-4 py-2">(단위 : 원, %)</p>
             </div>
           </div>
 
           <div className="report-section">
             <p className="text-sm font-semibold text-gray-900 mb-3">■ 매출 채권 현황</p>
             <div className="report-table-wrap overflow-x-auto">
-              <table className="report-table w-full">
+              <table className="report-table report-unified-table w-full">
                 <thead>
                   <tr>
-                    <th className="report-th w-[10%]">구분</th>
-                    <th className="report-th w-[6%]">연도</th>
+                    <th className="report-th report-th-category w-[8%]"></th>
+                    <th className="report-th report-th-gubun w-[6%]">구분</th>
                     {monthCols}
                     <th className="report-th w-[8%]">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.salesByCategory.map((cat, catIdx) => (
+                  {/* B&G 매출 */}
+                  {data.salesByCategory.filter((c) => c.categoryCode === CATEGORY_BG).map((cat) => (
                     <Fragment key={cat.categoryCode}>
-                      <tr className={catIdx % 2 === 0 ? "report-row-even" : ""}>
-                        <td className="report-td" rowSpan={3}>{cat.categoryLabel}</td>
-                        <td className="report-td">{data.previousStartDate.slice(0, 4)}년</td>
+                      <tr className="report-row-even report-sales-category-bg">
+                        <td className="report-td report-td-category" rowSpan={3}>{cat.categoryLabel}</td>
+                        <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
                         {MONTHS.map((m) => (
                           <td key={m} className="report-td report-td-num">
                             {formatAmount((cat.previousYear as unknown as Record<string, number>)[String(m)])}
                           </td>
                         ))}
-                        <td className="report-td report-td-num">{formatAmount(cat.previousYear.total)}</td>
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.previousYear.total)}</td>
                       </tr>
-                      <tr className={catIdx % 2 === 0 ? "report-row-even" : ""}>
-                        <td className="report-td">{data.startDate.slice(0, 4)}년</td>
+                      <tr className="report-sales-category-bg report-row-current">
+                        <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
                         {MONTHS.map((m) => (
                           <td key={m} className="report-td report-td-num">
                             {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
                           </td>
                         ))}
-                        <td className="report-td report-td-num">{formatAmount(cat.currentYear.total)}</td>
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
                       </tr>
-                      <tr className={catIdx % 2 === 0 ? "report-row-even" : ""}>
-                        <td className="report-td">증감</td>
+                      <tr className="report-row-even report-sales-category-bg report-row-current">
+                        <td className="report-td report-td-gubun">증감</td>
                         {MONTHS.map((m) => (
                           <td key={m} className="report-td report-td-num">
                             {renderChange(
@@ -193,85 +203,96 @@ export default function ReportPage() {
                             )}
                           </td>
                         ))}
-                        <td className="report-td report-td-num">
+                        <td className="report-td report-td-num report-td-total">
                           {renderChange(cat.currentYear.total, cat.previousYear.total)}
                         </td>
                       </tr>
                     </Fragment>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="report-section">
-            <p className="text-sm font-semibold text-gray-900 mb-3">채권</p>
-            <div className="report-table-wrap overflow-x-auto">
-              <table className="report-table w-full">
-                <thead>
-                  <tr>
-                    <th className="report-th w-[12%]">구분</th>
-                    {monthCols}
-                    <th className="report-th w-[8%]">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="report-row-even">
-                    <td className="report-td">요청금액</td>
+                  <SpacerRow />
+                  {/* OUP 매출 */}
+                  {data.salesByCategory.filter((c) => c.categoryCode === CATEGORY_OUP).map((cat) => (
+                    <Fragment key={cat.categoryCode}>
+                      <tr className="report-row-even report-sales-category-oup">
+                        <td className="report-td report-td-category" rowSpan={3}>{cat.categoryLabel}</td>
+                        <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.previousYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.previousYear.total)}</td>
+                      </tr>
+                      <tr className="report-sales-category-oup report-row-current">
+                        <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
+                      </tr>
+                      <tr className="report-row-even report-sales-category-oup report-row-current">
+                        <td className="report-td report-td-gubun">증감</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {renderChange(
+                              (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
+                              (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
+                            )}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">
+                          {renderChange(cat.currentYear.total, cat.previousYear.total)}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                  <SpacerRow />
+                  {/* 채권 */}
+                  <tr className="report-row-inamt">
+                    <td className="report-td report-td-category" rowSpan={3}>채권</td>
+                    <td className="report-td report-td-gubun">요청금액</td>
                     {MONTHS.map((m) => (<td key={m} className="report-td" />))}
-                    <td className="report-td" />
+                    <td className="report-td report-td-total" />
                   </tr>
-                  <tr>
-                    <td className="report-td">실제 입금액</td>
+                  <tr className="report-row-inamt report-row-inamt-highlight">
+                    <td className="report-td report-td-gubun">실제 입금액</td>
                     {MONTHS.map((m) => (
                       <td key={m} className="report-td report-td-num">
                         {formatAmount((data.inamt.currentYear as unknown as Record<string, number>)[String(m)])}
                       </td>
                     ))}
-                    <td className="report-td report-td-num">{formatAmount(data.inamt.currentYear.total)}</td>
+                    <td className="report-td report-td-num report-td-total">{formatAmount(data.inamt.currentYear.total)}</td>
                   </tr>
-                  <tr className="report-row-even">
-                    <td className="report-td">회수율</td>
+                  <tr className="report-row-inamt">
+                    <td className="report-td report-td-gubun">회수율</td>
                     {MONTHS.map((m) => (<td key={m} className="report-td" />))}
-                    <td className="report-td" />
+                    <td className="report-td report-td-total" />
                   </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="report-section">
-            <p className="text-sm font-semibold text-gray-900 mb-3">증정수량</p>
-            <div className="report-table-wrap overflow-x-auto">
-              <table className="report-table w-full">
-                <thead>
-                  <tr>
-                    <th className="report-th w-[12%]">구분</th>
-                    {monthCols}
-                    <th className="report-th w-[8%]">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="report-row-even">
-                    <td className="report-td">{data.previousStartDate.slice(0, 4)}년</td>
+                  <SpacerRow />
+                  {/* 증정수량 */}
+                  <tr className="report-row-inamt">
+                    <td className="report-td report-td-category" rowSpan={3}>증정수량</td>
+                    <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
                     {MONTHS.map((m) => (
                       <td key={m} className="report-td report-td-num">
                         {formatAmount((data.giftQty.previousYear as unknown as Record<string, number>)[String(m)])}
                       </td>
                     ))}
-                    <td className="report-td report-td-num">{formatAmount(data.giftQty.previousYear.total)}</td>
+                    <td className="report-td report-td-num report-td-total">{formatAmount(data.giftQty.previousYear.total)}</td>
                   </tr>
-                  <tr>
-                    <td className="report-td">{data.startDate.slice(0, 4)}년</td>
+                  <tr className="report-row-current report-row-inamt report-row-inamt-highlight">
+                    <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
                     {MONTHS.map((m) => (
                       <td key={m} className="report-td report-td-num">
                         {formatAmount((data.giftQty.currentYear as unknown as Record<string, number>)[String(m)])}
                       </td>
                     ))}
-                    <td className="report-td report-td-num">{formatAmount(data.giftQty.currentYear.total)}</td>
+                    <td className="report-td report-td-num report-td-total">{formatAmount(data.giftQty.currentYear.total)}</td>
                   </tr>
-                  <tr className="report-row-even">
-                    <td className="report-td">증감</td>
+                  <tr className="report-row-current report-row-inamt report-row-inamt-highlight">
+                    <td className="report-td report-td-gubun">증감</td>
                     {MONTHS.map((m) => (
                       <td key={m} className="report-td report-td-num">
                         {renderChange(
@@ -280,7 +301,7 @@ export default function ReportPage() {
                         )}
                       </td>
                     ))}
-                    <td className="report-td report-td-num">
+                    <td className="report-td report-td-num report-td-total">
                       {renderChange(data.giftQty.currentYear.total, data.giftQty.previousYear.total)}
                     </td>
                   </tr>
@@ -289,51 +310,64 @@ export default function ReportPage() {
             </div>
           </div>
 
-          <div className="report-section flex gap-6">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900 mb-3">
-                ■ 주요품목 판매 현황 (조회기간: {currPeriodShort})
-              </p>
-              <div className="report-table-wrap overflow-x-auto">
-                <table className="report-table w-full">
-                  <thead>
-                    <tr>
-                      <th className="report-th text-left">교재명</th>
-                      <th className="report-th">{prevPeriodShort}</th>
-                      <th className="report-th">{currPeriodShort}</th>
-                      <th className="report-th">증감</th>
-                    </tr>
-                  </thead>
+          <div className="report-section">
+            <p className="text-sm font-semibold text-gray-900 mb-3">
+              ■ 주요품목 판매 현황 (조회기간: {currPeriodShort})
+            </p>
+            {(() => {
+              const brands = data.topBrands ?? [];
+              const n = brands.length;
+              const third = Math.ceil(n / 3);
+              const slices = [
+                brands.slice(0, third),
+                brands.slice(third, third * 2),
+                brands.slice(third * 2),
+              ];
+              const maxBrandLen = Math.max(0, ...brands.map((r) => (r.brand || "").length));
+              const brandColWidthPx = maxBrandLen * 9 + 10;
+              return (
+                <table className="report-topbrands-split w-full table-fixed border-collapse">
                   <tbody>
-                    {(data.topBrands ?? []).map((r, idx) => (
-                      <tr key={r.brand} className={idx % 2 === 0 ? "report-row-even" : ""}>
-                        <td className="report-td text-left">{r.brand}</td>
-                        <td className="report-td report-td-num">{formatAmount(r.qtyPrevious)}</td>
-                        <td className="report-td report-td-num">{formatAmount(r.qtyCurrent)}</td>
-                        <td className="report-td report-td-num">
-                          <span className={r.isIncrease === true ? "report-increase" : r.isIncrease === false ? "report-decrease" : ""}>
-                            {r.changePercent !== "-" && (r.isIncrease === true ? "▲" : r.isIncrease === false ? "▼" : "")}
-                            {r.changePercent}
-                          </span>
+                    <tr className="align-top">
+                      {slices.map((rows, i) => (
+                        <td key={i} className={`w-1/3 p-0 align-top ${i === 0 ? "pr-2" : i === 1 ? "px-2" : "pl-2"}`}>
+                          <div className="report-table-wrap overflow-x-auto">
+                            <table
+                              className="report-table report-topbrands report-topbrands-narrow w-full"
+                              style={{ "--brand-col-width": `${brandColWidthPx}px` } as React.CSSProperties}
+                            >
+                              <thead>
+                                <tr>
+                                  <th className="report-th report-th-narrow text-left">교재명</th>
+                                  <th className="report-th report-th-narrow">{prevYearLabel}</th>
+                                  <th className="report-th report-th-narrow">{currYearLabel}</th>
+                                  <th className="report-th report-th-narrow">증감</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((r, idx) => (
+                                  <tr key={`${r.brand}-${i}-${idx}`} className={idx % 2 === 0 ? "report-row-even" : ""}>
+                                    <td className="report-td report-td-narrow text-left">{r.brand}</td>
+                                    <td className="report-td report-td-narrow report-td-num">{formatAmount(r.qtyPrevious)}</td>
+                                    <td className="report-td report-td-narrow report-td-num report-td-current">{formatAmount(r.qtyCurrent)}</td>
+                                    <td className="report-td report-td-narrow report-td-num report-td-current">
+                                      <span className={r.isIncrease === true ? "report-increase" : r.isIncrease === false ? "report-decrease" : ""}>
+                                        {r.changePercent !== "-" && (r.isIncrease === true ? "▲" : r.isIncrease === false ? "▼" : "")}
+                                        {r.changePercent}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </td>
-                      </tr>
-                    ))}
+                      ))}
+                    </tr>
                   </tbody>
                 </table>
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900 mb-3">■ 특이사항</p>
-              <textarea
-                className="report-note-input screen-only w-full min-h-[120px] border border-gray-300 rounded p-3 text-sm resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                value={specialNote}
-                onChange={(e) => setSpecialNote(e.target.value)}
-                placeholder="특이사항을 입력하세요."
-              />
-              <div className="report-print-note print-only mt-2 border border-gray-300 min-h-[120px] p-3 text-sm whitespace-pre-wrap bg-white">
-                {specialNote || " "}
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </ReportContainer>
       )}
