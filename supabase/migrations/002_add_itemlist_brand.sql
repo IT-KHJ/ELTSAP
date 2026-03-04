@@ -1,0 +1,5 @@
+-- ITEMLIST에 SAP OITM.U_LEVEL3NM 매핑용 brand 컬럼 추가
+ALTER TABLE public."ITEMLIST"
+  ADD COLUMN IF NOT EXISTS "brand" TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_ITEMLIST_brand ON public."ITEMLIST" ("brand");

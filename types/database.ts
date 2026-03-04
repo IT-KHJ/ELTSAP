@@ -1,0 +1,75 @@
+/** Supabase 테이블 타입 (DDL 기준) */
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export interface CustomerRow {
+  cardcode: string;
+  cardname: string | null;
+  groupcode: number | null;
+  address: string | null;
+  zipcode: string | null;
+  phone1: string | null;
+  phone2: string | null;
+  fax: string | null;
+  cntctprsn: string | null;
+  notes: string | null;
+  e_mail: string | null;
+  shiptodef: string | null;
+  vatregnum: string | null;
+  repname: string | null;
+  aliasname: string | null;
+  billtodef: string | null;
+  u_delyn: string | null;
+}
+
+export interface ItemlistRow {
+  itemcode: string;
+  itemname: string | null;
+  itmsgrpcod: number | null;
+  codebars: string | null;
+  brand: string | null;
+  itemgb: string | null;
+}
+
+export interface SalesRow {
+  id?: number;
+  docentry: number;
+  linenum: number;
+  itemcode: string | null;
+  quantity: number | null;
+  price: number | null;
+  discprcnt: number | null;
+  pricebefdi: number | null;
+  docdate: string | null;
+  basecard: string | null;
+  totalsumsy: number | null;
+}
+
+export interface InamtRow {
+  docentry: number;
+  docdate: string | null;
+  cardcode: string | null;
+  doctotal: number | null;
+}
+
+export interface SaleetcRow {
+  id?: number;
+  docentry: number;
+  linenum: number;
+  itemcode: string | null;
+  quantity: number | null;
+  docdate: string | null;
+  basecard: string | null;
+}
+
+export interface Database {
+  public: {
+    Tables: {
+      CUSTOMER: { Row: CustomerRow; Insert: Omit<CustomerRow, never>; Update: Partial<CustomerRow> };
+      ITEMLIST: { Row: ItemlistRow; Insert: ItemlistRow; Update: Partial<ItemlistRow> };
+      SALES: { Row: SalesRow; Insert: Omit<SalesRow, "id">; Update: Partial<SalesRow> };
+      INAMT: { Row: InamtRow; Insert: InamtRow; Update: Partial<InamtRow> };
+      SALEETC: { Row: SaleetcRow; Insert: Omit<SaleetcRow, "id">; Update: Partial<SaleetcRow> };
+    };
+  };
+}

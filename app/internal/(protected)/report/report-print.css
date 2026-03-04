@@ -1,0 +1,147 @@
+/* ========== Screen: Report Table & Layout ========== */
+
+.report-table {
+  font-size: 13px;
+  line-height: 1.6;
+  border-collapse: collapse;
+}
+
+.report-table thead tr {
+  background: #f5f6f7;
+  font-weight: 600;
+}
+
+.report-th {
+  padding: 10px 8px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.report-td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.report-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-row-even {
+  background: #fafafa;
+}
+
+.report-table tbody tr:hover {
+  background: #f3f4f6;
+}
+
+.report-increase {
+  color: #dc2626;
+}
+
+.report-decrease {
+  color: #2563eb;
+}
+
+.report-section {
+  margin-top: 32px;
+}
+
+.report-section:first-child {
+  margin-top: 0;
+}
+
+.report-kpi-box {
+  flex-shrink: 0;
+}
+
+.report-summary-table {
+  border-collapse: collapse;
+}
+.report-summary-table .report-th,
+.report-summary-table .report-td {
+  border: 1px solid #e5e7eb;
+}
+.report-summary-table thead tr {
+  background: #f5f6f7;
+}
+
+/* 특이사항: 화면에서만 textarea 표시 */
+.report-note-input.print-hide-on-print {
+  /* used in JSX for clarity; print rule below hides it */
+}
+
+/* ========== Print Mode: 화면 UI와 인쇄 UI 분리 ========== */
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* 숨김: Filter Panel, Sidebar, Header Navigation */
+  .filter-panel-no-print,
+  .print-hide,
+  .report-note-input {
+    display: none !important;
+  }
+
+  /* 인쇄 시 특이사항은 print-only 블록만 표시 */
+  .report-print-note.print-only {
+    display: block !important;
+    min-height: 120px;
+    border: 1px solid #333;
+    padding: 12px;
+    white-space: pre-wrap;
+    background: #fff;
+  }
+
+  .report-table,
+  .report-print-area .report-table {
+    width: 100%;
+    font-size: 11px;
+    line-height: 1.4;
+    border-collapse: collapse;
+    page-break-inside: avoid;
+  }
+
+  .report-th,
+  .report-td {
+    border: 1px solid #333;
+    padding: 4px 6px;
+  }
+
+  .report-table thead tr {
+    background: #eee;
+    font-weight: 600;
+  }
+
+  .report-table tbody tr:hover {
+    background: transparent;
+  }
+
+  .report-row-even {
+    background: #f9fafb;
+  }
+
+  .report-increase {
+    color: #b91c1c;
+  }
+
+  .report-decrease {
+    color: #1d4ed8;
+  }
+
+  .report-kpi-box {
+    border: 1px solid #333;
+    background: #fafafa;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none;
+  }
+}

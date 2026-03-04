@@ -1,0 +1,5 @@
+-- ITEMLIST에 SAP OITM.U_LEVEL2 매핑용 itemgb 컬럼 추가
+ALTER TABLE public."ITEMLIST"
+  ADD COLUMN IF NOT EXISTS "itemgb" TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_ITEMLIST_itemgb ON public."ITEMLIST" ("itemgb");
