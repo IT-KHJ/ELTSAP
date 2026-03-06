@@ -80,6 +80,20 @@ export default function ReportPage() {
     );
   };
 
+  /** 반품: 절대값 기준으로 반품 규모 감소=▼, 증가=▲ (invertForNegative 미적용) */
+  const renderChangeForReturns = (current: number, previous: number) => {
+    const { text, isIncrease } = formatChangePercent(current, previous, { invertForNegative: false });
+    if (text === "-") return <span>-</span>;
+    const cls = isIncrease === true ? "report-increase" : isIncrease === false ? "report-decrease" : "";
+    return (
+      <span className={cls}>
+        {isIncrease === true && "▲"}
+        {isIncrease === false && "▼"}
+        {text}
+      </span>
+    );
+  };
+
   /** YYYY-MM-DD 형식에서 월 숫자 추출 (1~12, 0이면 1로 보정) */
   const parseMonth = (dateStr: string): number => {
     const parts = dateStr.split("-");
@@ -301,14 +315,14 @@ export default function ReportPage() {
                         <td className="report-td report-td-gubun">증감</td>
                         {MONTHS.map((m) => (
                           <td key={m} className="report-td report-td-num">
-                            {renderChange(
+                            {renderChangeForReturns(
                               (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
                               (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
                             )}
                           </td>
                         ))}
                         <td className="report-td report-td-num report-td-total">
-                          {renderChange(cat.currentYear.total, cat.previousYear.total)}
+                          {renderChangeForReturns(cat.currentYear.total, cat.previousYear.total)}
                         </td>
                       </tr>
                     </Fragment>
@@ -339,14 +353,14 @@ export default function ReportPage() {
                         <td className="report-td report-td-gubun">증감</td>
                         {MONTHS.map((m) => (
                           <td key={m} className="report-td report-td-num">
-                            {renderChange(
+                            {renderChangeForReturns(
                               (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
                               (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
                             )}
                           </td>
                         ))}
                         <td className="report-td report-td-num report-td-total">
-                          {renderChange(cat.currentYear.total, cat.previousYear.total)}
+                          {renderChangeForReturns(cat.currentYear.total, cat.previousYear.total)}
                         </td>
                       </tr>
                     </Fragment>
