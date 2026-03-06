@@ -29,7 +29,7 @@ export function normalizeTimestampForParse(raw: string): string {
 /** 마지막 동기화 시각 조회 (증분 동기화용). 없으면 null. YYYY-MM-DD(날짜만) 반환. SAP CreateDate/UpdateDate와 동일하게 날짜 단위 비교 */
 export async function getLastSyncTime(entityType: SyncEntityType): Promise<string | null> {
   const r = await getLastSyncTimeDebug(entityType);
-  return r?.since ?? null;
+  return r && "since" in r ? r.since : null;
 }
 
 /** 마지막 동기화 시각 + 원본값 (디버깅용). error 있으면 _debug에 포함 */
