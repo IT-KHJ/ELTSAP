@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { getClientSupabase } from '@/lib/supabase/client';
 import { useModal } from '@/lib/components/ModalProvider';
+import { PowerIcon } from './PowerIcon';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function LogoutButton() {
       className="w-full mt-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-left"
     >
       <span className="flex items-center gap-2">
-        <span>🚪</span>
+        <PowerIcon className="w-5 h-5 shrink-0" />
         <span>로그아웃</span>
       </span>
     </button>

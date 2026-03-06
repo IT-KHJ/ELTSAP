@@ -2,14 +2,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getDisplayName } from '@/lib/user-profiles';
 import { SessionMonitor } from './components/SessionMonitor';
 import { LogoutButton } from './components/LogoutButton';
 import { ModalProvider } from '@/lib/components/ModalProvider';
 
 function getNavItems(isAdmin: boolean) {
   const items = [
-    { label: '거래처 현황 보고서', href: '/internal/report', icon: '📄', adminOnly: false },
-    { label: '동기화', href: '/internal/sync', icon: '🔄', adminOnly: true },
+    { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄', adminOnly: false },
+    { label: '설정', href: '/internal/sync', icon: '⚙️', adminOnly: true },
   ];
   return items.filter((item) => !item.adminOnly || isAdmin);
 }
@@ -45,6 +46,7 @@ export default async function ProtectedLayout({
 
   const { user, isAdmin } = auth;
   const navItems = getNavItems(isAdmin);
+  const displayName = await getDisplayName(user.email) ?? user.email ?? '사용자';
 
   return (
     <ModalProvider>
@@ -83,12 +85,12 @@ export default async function ProtectedLayout({
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-blue-600 font-medium text-sm">
-                  {(user.email ?? 'U')[0].toUpperCase()}
+                  {(displayName ?? 'U')[0].toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user.email ?? '사용자'}
+                  {displayName}
                 </p>
               </div>
             </div>

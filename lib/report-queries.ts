@@ -9,6 +9,8 @@ import {
   CATEGORY_OUP,
   LABEL_BG,
   LABEL_OUP,
+  LABEL_BG_RETURN,
+  LABEL_OUP_RETURN,
   MONTHS,
 } from "./constants";
 import type { MonthlyAmount, SalesByCategory, TopItemRow, TopBrandRow } from "@/types/report";
@@ -22,30 +24,36 @@ function emptyMonthly(): MonthlyAmount {
 
 const SALES_PAGE_SIZE = 1000;
 
-/** Supabase 기본 1000행 제한을 넘기 위해 SALES 전체 조회 (페이지네이션) */
-type SalesRow = { docdate: string | null; totalsumsy: number | null; itemcode: string | null };
-async function fetchAllSales(
+/** DB 함수 get_sales_by_category_monthly 호출 - 사용자 SQL과 동일한 EXISTS 조인 로직 */
+type MonthlyRow = { month: number; total: number };
+async function fetchSalesByCategoryFromDb(
   admin: ReturnType<typeof getSupabaseAdmin>,
   cardcode: string,
   startDate: string,
-  endDate: string
-): Promise<SalesRow[]> {
-  const out: SalesRow[] = [];
-  let offset = 0;
-  while (true) {
-    const { data } = await admin
-      .from("SALES")
-      .select("docdate, totalsumsy, itemcode")
-      .eq("basecard", cardcode)
-      .gte("docdate", startDate)
-      .lte("docdate", endDate)
-      .range(offset, offset + SALES_PAGE_SIZE - 1);
-    const rows = (data ?? []) as SalesRow[];
-    out.push(...rows);
-    if (rows.length < SALES_PAGE_SIZE) break;
-    offset += SALES_PAGE_SIZE;
-  }
-  return out;
+  endDate: string,
+  itmsgrpcod: number,
+  returnsOnly: boolean
+): Promise<MonthlyAmount> {
+  const { data } = await admin.rpc("get_sales_by_category_monthly", {
+    p_basecard: cardcode,
+    p_start: startDate,
+    p_end: endDate,
+    p_itmsgrpcod: itmsgrpcod,
+    p_returns_only: returnsOnly,
+  });
+  const rows = (data ?? []) as MonthlyRow[];
+  const m = emptyMonthly();
+  let total = 0;
+  rows.forEach((r) => {
+    const amt = Number(r.total) || 0;
+    total += amt;
+    const k = String(r.month);
+    if (r.month >= 1 && r.month <= 12) {
+      (m as unknown as Record<string, number>)[k] = ((m as unknown as Record<string, number>)[k] || 0) + amt;
+    }
+  });
+  m.total = total;
+  return m;
 }
 
 type SalesQtyRow = { itemcode: string | null; quantity: number | null };
@@ -80,108 +88,54 @@ function monthKey(dateStr: string): string {
   return String(month >= 1 && month <= 12 ? month : 1);
 }
 
-/** SALES + ITEMLIST 조인, basecard + 기간, itmsgrpcod별 월별 totalsumsy 합계 */
+/** SALES + ITEMLIST EXISTS 조인으로 월별 totalsumsy 집계 (사용자 SQL과 동일 로직)
+ * 매출: 양수/음수/0 모두 합산. 반품: totalsumsy < 0만 */
 export async function getSalesByCategory(
   cardcode: string,
   startDate: string,
   endDate: string,
   previousStart: string,
   previousEnd: string
-): Promise<SalesByCategory[]> {
+): Promise<{ salesByCategory: SalesByCategory[]; returnsByCategory: SalesByCategory[] }> {
   const admin = getSupabaseAdmin();
-  const [current, previous] = await Promise.all([
-    fetchAllSales(admin, cardcode, startDate, endDate),
-    fetchAllSales(admin, cardcode, previousStart, previousEnd),
+  const ITMSGRP_BG = 100;
+  const ITMSGRP_OUP = 101;
+
+  const [bgCur, bgPrev, oupCur, oupPrev, retBgCur, retBgPrev, retOupCur, retOupPrev] = await Promise.all([
+    fetchSalesByCategoryFromDb(admin, cardcode, startDate, endDate, ITMSGRP_BG, false),
+    fetchSalesByCategoryFromDb(admin, cardcode, previousStart, previousEnd, ITMSGRP_BG, false),
+    fetchSalesByCategoryFromDb(admin, cardcode, startDate, endDate, ITMSGRP_OUP, false),
+    fetchSalesByCategoryFromDb(admin, cardcode, previousStart, previousEnd, ITMSGRP_OUP, false),
+    fetchSalesByCategoryFromDb(admin, cardcode, startDate, endDate, ITMSGRP_BG, true),
+    fetchSalesByCategoryFromDb(admin, cardcode, previousStart, previousEnd, ITMSGRP_BG, true),
+    fetchSalesByCategoryFromDb(admin, cardcode, startDate, endDate, ITMSGRP_OUP, true),
+    fetchSalesByCategoryFromDb(admin, cardcode, previousStart, previousEnd, ITMSGRP_OUP, true),
   ]);
 
-  const itemCodes = new Set<string>();
-  current.forEach((r) => r.itemcode && itemCodes.add(r.itemcode));
-  previous.forEach((r) => r.itemcode && itemCodes.add(r.itemcode));
-
-  if (itemCodes.size === 0) {
-    return [
-      { categoryCode: CATEGORY_BG, categoryLabel: LABEL_BG, currentYear: emptyMonthly(), previousYear: emptyMonthly(), changePercent: {} },
-      { categoryCode: CATEGORY_OUP, categoryLabel: LABEL_OUP, currentYear: emptyMonthly(), previousYear: emptyMonthly(), changePercent: {} },
-    ];
-  }
-
-  const { data: itemsRaw } = await admin
-    .from("ITEMLIST")
-    .select("itemcode, itmsgrpcod")
-    .in("itemcode", Array.from(itemCodes));
-
-  type ItemRow = { itemcode: string; itmsgrpcod: number | null };
-  const items = (itemsRaw ?? []) as ItemRow[];
-  const mapItemGroup: Record<string, number> = {};
-  items.forEach((r) => {
-    mapItemGroup[r.itemcode] = r.itmsgrpcod ?? 0;
-  });
-
-  const toMonthly = (rows: { docdate: string | null; totalsumsy: number | null }[]) => {
-    const m = emptyMonthly();
-    let total = 0;
-    (rows || []).forEach((r) => {
-      const amt = Number(r.totalsumsy) || 0;
-      total += amt;
-      if (r.docdate) {
-        const k = monthKey(r.docdate);
-        (m as unknown as Record<string, number>)[k] = ((m as unknown as Record<string, number>)[k] || 0) + amt;
-      }
-    });
-    m.total = total;
-    return m;
-  };
-
-  const byCategory = (
-    rows: { docdate: string | null; totalsumsy: number | null; itemcode: string | null }[]
-  ) => {
-    const bg: { docdate: string | null; totalsumsy: number | null }[] = [];
-    const oup: { docdate: string | null; totalsumsy: number | null }[] = [];
-    const etc: { docdate: string | null; totalsumsy: number | null }[] = [];
-    rows.forEach((r) => {
-      const code = String(mapItemGroup[r.itemcode ?? ""] ?? "");
-      const row = { docdate: r.docdate, totalsumsy: r.totalsumsy };
-      if (code === CATEGORY_BG) bg.push(row);
-      else if (code === CATEGORY_OUP) oup.push(row);
-      else etc.push(row);
-    });
-    return { bg, oup, etc };
-  };
-
-  const cur = byCategory(current);
-  const prev = byCategory(previous);
-
-  const result: SalesByCategory[] = [
-    {
-      categoryCode: CATEGORY_BG,
-      categoryLabel: LABEL_BG,
-      currentYear: toMonthly(cur.bg),
-      previousYear: toMonthly(prev.bg),
-      changePercent: {},
-    },
-    {
-      categoryCode: CATEGORY_OUP,
-      categoryLabel: LABEL_OUP,
-      currentYear: toMonthly(cur.oup),
-      previousYear: toMonthly(prev.oup),
-      changePercent: {},
-    },
-  ];
-
-  result.forEach((cat) => {
+  const applyChangePercent = (cat: SalesByCategory) => {
     const c = cat.currentYear;
     const p = cat.previousYear;
     MONTHS.forEach((month) => {
       const key = String(month);
       const cv = (c as unknown as Record<string, number>)[key] ?? 0;
       const pv = (p as unknown as Record<string, number>)[key] ?? 0;
-      const { text } = formatChangePercent(cv, pv);
-      (cat.changePercent as Record<string, string>)[key] = text;
+      (cat.changePercent as Record<string, string>)[key] = formatChangePercent(cv, pv).text;
     });
     (cat.changePercent as Record<string, string>).total = formatChangePercent(c.total, p.total).text;
-  });
+  };
 
-  return result;
+  const salesResult: SalesByCategory[] = [
+    { categoryCode: CATEGORY_BG, categoryLabel: LABEL_BG, currentYear: bgCur, previousYear: bgPrev, changePercent: {} },
+    { categoryCode: CATEGORY_OUP, categoryLabel: LABEL_OUP, currentYear: oupCur, previousYear: oupPrev, changePercent: {} },
+  ];
+  const returnsResult: SalesByCategory[] = [
+    { categoryCode: CATEGORY_BG, categoryLabel: LABEL_BG_RETURN, currentYear: retBgCur, previousYear: retBgPrev, changePercent: {} },
+    { categoryCode: CATEGORY_OUP, categoryLabel: LABEL_OUP_RETURN, currentYear: retOupCur, previousYear: retOupPrev, changePercent: {} },
+  ];
+  salesResult.forEach(applyChangePercent);
+  returnsResult.forEach(applyChangePercent);
+
+  return { salesByCategory: salesResult, returnsByCategory: returnsResult };
 }
 
 /** INAMT 월별 합계 */

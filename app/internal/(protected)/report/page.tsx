@@ -1,18 +1,38 @@
 "use client";
 
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, Fragment, useMemo } from "react";
 import type { ReportData } from "@/types/report";
 import { formatAmount, formatChangePercent } from "@/lib/format";
 import { MONTHS, CATEGORY_BG, CATEGORY_OUP } from "@/lib/constants";
+import { useModal } from "@/lib/components/ModalProvider";
 import { FilterPanel, type CustomerOption } from "./components/FilterPanel";
 import { ReportContainer } from "./components/ReportContainer";
 import "./report-print.css";
 
+function getDefaultPeriod() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1~12
+  if (currentMonth === 1) {
+    // 1월인 경우: 전년 1월 ~ 전년 12월
+    return { startYear: currentYear - 1, startMonth: 1, endYear: currentYear - 1, endMonth: 12 };
+  }
+  // 그 외: 당해 1월 ~ 당월 -1개월
+  return {
+    startYear: currentYear,
+    startMonth: 1,
+    endYear: currentYear,
+    endMonth: currentMonth - 1,
+  };
+}
+
 export default function ReportPage() {
-  const [startYear, setStartYear] = useState(2025);
-  const [startMonth, setStartMonth] = useState(1);
-  const [endYear, setEndYear] = useState(2025);
-  const [endMonth, setEndMonth] = useState(12);
+  const modal = useModal();
+  const defaultPeriod = useMemo(() => getDefaultPeriod(), []);
+  const [startYear, setStartYear] = useState(defaultPeriod.startYear);
+  const [startMonth, setStartMonth] = useState(defaultPeriod.startMonth);
+  const [endYear, setEndYear] = useState(defaultPeriod.endYear);
+  const [endMonth, setEndMonth] = useState(defaultPeriod.endMonth);
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [options, setOptions] = useState<CustomerOption[]>([]);
@@ -27,7 +47,7 @@ export default function ReportPage() {
 
   const loadReport = async () => {
     if (!customer) {
-      alert("거래처를 선택하세요.");
+      await modal.open({ type: "info", message: "거래처를 선택하세요." });
       return;
     }
     setLoading(true);
@@ -41,7 +61,7 @@ export default function ReportPage() {
       const report = (await res.json()) as ReportData;
       setData(report);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "조회 실패");
+      await modal.open({ type: "error", message: e instanceof Error ? e.message : "조회 실패" });
     } finally {
       setLoading(false);
     }
@@ -125,8 +145,7 @@ export default function ReportPage() {
         <ReportContainer>
           <div className="mb-8 flex items-start justify-between gap-6">
             <div className="flex flex-col gap-1 shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900">거래처 현황 보고서</h2>
-              <p className="text-lg font-semibold text-gray-900">총판명 : {data.cardname}</p>
+              <p className="text-2xl font-semibold text-gray-900">총판명 : {data.cardname}</p>
             </div>
             <div className="report-kpi-box border border-gray-200 rounded-lg overflow-hidden bg-[#fafafa] flex-1 min-w-0 max-w-2xl">
               <table className="report-summary-table text-sm w-full table-fixed">
@@ -146,6 +165,15 @@ export default function ReportPage() {
                     <td className={`report-td report-td-current py-2.5 px-4 ${data.summary.changePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
                       {data.summary.changePercent !== "-" && (data.summary.changePercent.includes("-") ? "▼" : "▲")}
                       {data.summary.changePercent}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="report-td py-2.5 px-4">반품</td>
+                    <td className="report-td report-td-num py-2.5 px-4">{formatAmount(data.summary.returnTotalPrevious)}</td>
+                    <td className="report-td report-td-num report-td-current py-2.5 px-4">{formatAmount(data.summary.returnTotalCurrent)}</td>
+                    <td className={`report-td report-td-current py-2.5 px-4 ${data.summary.returnChangePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
+                      {data.summary.returnChangePercent !== "-" && (data.summary.returnChangePercent.includes("-") ? "▼" : "▲")}
+                      {data.summary.returnChangePercent}
                     </td>
                   </tr>
                 </tbody>
@@ -209,6 +237,83 @@ export default function ReportPage() {
                   {/* OUP 매출 */}
                   {data.salesByCategory.filter((c) => c.categoryCode === CATEGORY_OUP).map((cat) => (
                     <Fragment key={cat.categoryCode}>
+                      <tr className="report-row-even report-sales-category-oup">
+                        <td className="report-td report-td-category" rowSpan={3}>{cat.categoryLabel}</td>
+                        <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.previousYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.previousYear.total)}</td>
+                      </tr>
+                      <tr className="report-sales-category-oup report-row-current">
+                        <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
+                      </tr>
+                      <tr className="report-row-even report-sales-category-oup report-row-current">
+                        <td className="report-td report-td-gubun">증감</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {renderChange(
+                              (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
+                              (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
+                            )}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">
+                          {renderChange(cat.currentYear.total, cat.previousYear.total)}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                  <SpacerRow />
+                  {/* B&G 반품 */}
+                  {data.returnsByCategory.filter((c) => c.categoryCode === CATEGORY_BG).map((cat) => (
+                    <Fragment key={`return-${cat.categoryCode}`}>
+                      <tr className="report-row-even report-sales-category-bg">
+                        <td className="report-td report-td-category" rowSpan={3}>{cat.categoryLabel}</td>
+                        <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.previousYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.previousYear.total)}</td>
+                      </tr>
+                      <tr className="report-sales-category-bg report-row-current">
+                        <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
+                      </tr>
+                      <tr className="report-row-even report-sales-category-bg report-row-current">
+                        <td className="report-td report-td-gubun">증감</td>
+                        {MONTHS.map((m) => (
+                          <td key={m} className="report-td report-td-num">
+                            {renderChange(
+                              (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
+                              (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
+                            )}
+                          </td>
+                        ))}
+                        <td className="report-td report-td-num report-td-total">
+                          {renderChange(cat.currentYear.total, cat.previousYear.total)}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                  {/* OUP 반품 */}
+                  {data.returnsByCategory.filter((c) => c.categoryCode === CATEGORY_OUP).map((cat) => (
+                    <Fragment key={`return-${cat.categoryCode}`}>
                       <tr className="report-row-even report-sales-category-oup">
                         <td className="report-td report-td-category" rowSpan={3}>{cat.categoryLabel}</td>
                         <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>

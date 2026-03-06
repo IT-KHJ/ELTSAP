@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const cardname = (cust as { cardname?: string } | null)?.cardname ?? cardcode;
 
-    const [salesByCategory, inamt, giftQty, topItems, topBrands] = await Promise.all([
+    const [salesResult, inamt, giftQty, topItems, topBrands] = await Promise.all([
       getSalesByCategory(cardcode, startDate, endDate, prevStartDate, prevEndDate),
       getInamtMonthly(cardcode, startDate, endDate, prevStartDate, prevEndDate),
       getGiftQtyMonthly(cardcode, startDate, endDate, prevStartDate, prevEndDate),
@@ -57,12 +57,21 @@ export async function GET(request: NextRequest) {
       getTopBrands(cardcode, startDate, endDate, prevStartDate, prevEndDate, 20),
     ]);
 
+    const { salesByCategory, returnsByCategory } = salesResult;
+
     const totalCurrent =
       salesByCategory.reduce((s, c) => s + c.currentYear.total, 0) || 0;
     const totalPrevious =
       salesByCategory.reduce((s, c) => s + c.previousYear.total, 0) || 0;
     const { text: summaryChange } = formatChangePercent(totalCurrent, totalPrevious);
     const diffAmount = totalCurrent - totalPrevious;
+
+    const returnTotalCurrent =
+      returnsByCategory.reduce((s, c) => s + c.currentYear.total, 0) || 0;
+    const returnTotalPrevious =
+      returnsByCategory.reduce((s, c) => s + c.previousYear.total, 0) || 0;
+    const { text: returnChangePercent } = formatChangePercent(returnTotalCurrent, returnTotalPrevious);
+    const returnDiffAmount = returnTotalCurrent - returnTotalPrevious;
 
     const report: ReportData = {
       cardcode,
@@ -76,8 +85,13 @@ export async function GET(request: NextRequest) {
         totalPrevious,
         changePercent: summaryChange,
         diffAmount,
+        returnTotalCurrent,
+        returnTotalPrevious,
+        returnChangePercent,
+        returnDiffAmount,
       },
       salesByCategory,
+      returnsByCategory,
       inamt,
       giftQty,
       topItems: topItems.map((r) => ({

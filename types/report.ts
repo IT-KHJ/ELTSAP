@@ -77,8 +77,13 @@ export interface ReportData {
     totalPrevious: number;
     changePercent: string;
     diffAmount: number;
+    returnTotalCurrent: number;
+    returnTotalPrevious: number;
+    returnChangePercent: string;
+    returnDiffAmount: number;
   };
   salesByCategory: SalesByCategory[];
+  returnsByCategory: SalesByCategory[];
   inamt: InamtMonthly;
   giftQty: GiftQtyMonthly;
   topItems: TopItemRow[];

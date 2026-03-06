@@ -7,6 +7,8 @@ export const CATEGORY_BG = "100";
 export const CATEGORY_OUP = "101";
 export const LABEL_BG = "B&G 매출";
 export const LABEL_OUP = "OUP 매출";
+export const LABEL_BG_RETURN = "B&G 반품";
+export const LABEL_OUP_RETURN = "OUP 반품";
 export const LABEL_ETC = "기타";
 
 export const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
