@@ -162,6 +162,7 @@
 .report-summary-table .report-th,
 .report-summary-table .report-td {
   border: 1px solid #e5e7eb;
+  padding: 4px 16px;
 }
 .report-summary-table thead tr {
   background: #f5f6f7;

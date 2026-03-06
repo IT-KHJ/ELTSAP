@@ -111,7 +111,7 @@ export default function ReportPage() {
 
   return (
     <div className="report-page">
-      <div className="filter-panel-no-print mb-5">
+      <div className="filter-panel-no-print mb-2">
         <FilterPanel
           startYear={startYear}
           startMonth={startMonth}
@@ -143,7 +143,7 @@ export default function ReportPage() {
 
       {data && (
         <ReportContainer>
-          <div className="mb-8 flex items-start justify-between gap-6">
+          <div className="mb-1 flex items-start justify-between gap-6">
             <div className="flex flex-col gap-1 shrink-0">
               <p className="text-2xl font-semibold text-gray-900">총판명 : {data.cardname}</p>
             </div>
@@ -151,39 +151,41 @@ export default function ReportPage() {
               <table className="report-summary-table text-sm w-full table-fixed">
                 <thead>
                   <tr className="bg-[#f5f6f7]">
-                    <th className="report-th py-2.5 px-4 font-semibold w-20">구분</th>
-                    <th className="report-th py-2.5 px-4 font-semibold">{prevPeriodShort}</th>
-                    <th className="report-th py-2.5 px-4 font-semibold">{currPeriodShort}</th>
-                    <th className="report-th py-2.5 px-4 font-semibold w-24">증감</th>
+                    <th className="report-th py-0.5 px-4 font-semibold w-20">구분</th>
+                    <th className="report-th py-0.5 px-4 font-semibold">{prevPeriodShort}</th>
+                    <th className="report-th py-0.5 px-4 font-semibold">{currPeriodShort}</th>
+                    <th className="report-th py-0.5 px-4 font-semibold w-24">증감</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="report-td py-2.5 px-4">매출</td>
-                    <td className="report-td report-td-num py-2.5 px-4">{formatAmount(data.summary.totalPrevious)}</td>
-                    <td className="report-td report-td-num report-td-current py-2.5 px-4">{formatAmount(data.summary.totalCurrent)}</td>
-                    <td className={`report-td report-td-current py-2.5 px-4 ${data.summary.changePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
+                    <td className="report-td py-0.5 px-4">매출</td>
+                    <td className="report-td report-td-num py-0.5 px-4">{formatAmount(data.summary.totalPrevious)}</td>
+                    <td className="report-td report-td-num report-td-current py-0.5 px-4">{formatAmount(data.summary.totalCurrent)}</td>
+                    <td className={`report-td report-td-current py-0.5 px-4 ${data.summary.changePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
                       {data.summary.changePercent !== "-" && (data.summary.changePercent.includes("-") ? "▼" : "▲")}
                       {data.summary.changePercent}
                     </td>
                   </tr>
                   <tr>
-                    <td className="report-td py-2.5 px-4">반품</td>
-                    <td className="report-td report-td-num py-2.5 px-4">{formatAmount(data.summary.returnTotalPrevious)}</td>
-                    <td className="report-td report-td-num report-td-current py-2.5 px-4">{formatAmount(data.summary.returnTotalCurrent)}</td>
-                    <td className={`report-td report-td-current py-2.5 px-4 ${data.summary.returnChangePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
+                    <td className="report-td py-0.5 px-4">반품</td>
+                    <td className="report-td report-td-num py-0.5 px-4">{formatAmount(data.summary.returnTotalPrevious)}</td>
+                    <td className="report-td report-td-num report-td-current py-0.5 px-4">{formatAmount(data.summary.returnTotalCurrent)}</td>
+                    <td className={`report-td report-td-current py-0.5 px-4 ${data.summary.returnChangePercent.startsWith("-") ? "report-decrease" : "report-increase"}`}>
                       {data.summary.returnChangePercent !== "-" && (data.summary.returnChangePercent.includes("-") ? "▼" : "▲")}
                       {data.summary.returnChangePercent}
                     </td>
                   </tr>
                 </tbody>
               </table>
-              <p className="report-summary-unit text-xs text-gray-500 px-4 py-2">(단위 : 원, %)</p>
             </div>
           </div>
 
           <div className="report-section">
-            <p className="text-sm font-semibold text-gray-900 mb-3">■ 매출 채권 현황</p>
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-sm font-semibold text-gray-900">■ 매출 채권 현황</p>
+              <p className="text-xs text-gray-500">(단위 : 원, %)</p>
+            </div>
             <div className="report-table-wrap overflow-x-auto">
               <table className="report-table report-unified-table w-full">
                 <thead>
