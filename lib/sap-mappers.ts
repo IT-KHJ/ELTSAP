@@ -56,6 +56,7 @@ export function mapSapRowToItemlist(r: Record<string, unknown>): ItemlistRow {
 }
 
 export function mapSapRowToSales(r: Record<string, unknown>, index: number): Omit<SalesRow, "id"> {
+  const linestatus = toStr(r.linestatus ?? r.LineStatus) ?? "O";
   return {
     docentry: Number(r.docentry ?? r.DocEntry ?? 0),
     linenum: Number(r.linenum ?? r.LineNum ?? index),
@@ -67,6 +68,7 @@ export function mapSapRowToSales(r: Record<string, unknown>, index: number): Omi
     docdate: toDate(r.docdate ?? r.DocDate),
     basecard: toStr(r.basecard ?? r.BaseCard),
     totalsumsy: toNum(r.totalsumsy ?? r.TotalSumSy),
+    linestatus: linestatus === "" ? "O" : linestatus,
   };
 }
 

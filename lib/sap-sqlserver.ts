@@ -270,7 +270,8 @@ export async function querySapSales(since?: string | null): Promise<Record<strin
         i.docentry,
         ISNULL(i.LineNum, 0) AS linenum,
         i.itemcode, i.quantity, i.price, i.discprcnt, i.pricebefdi,
-        i.docdate, i.basecard, i.totalsumsy
+        i.docdate, i.basecard, i.totalsumsy,
+        ISNULL(i.LineStatus, 'O') AS linestatus
       FROM INV1 i
       INNER JOIN OINV o ON o.docentry = i.docentry
       WHERE o.cardcode IN (

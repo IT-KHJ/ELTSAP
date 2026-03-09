@@ -12,9 +12,9 @@ export interface SyncItemlistPayload {
   data: ItemlistRow[];
 }
 
-/** SAP INV1 → SALES. id 제외, linenum 있으면 사용 없으면 0 */
+/** SAP INV1 → SALES. id 제외, linenum/linestatus 선택. linestatus 없으면 'O' */
 export interface SyncSalesPayload {
-  data: Array<Omit<SalesRow, "id"> & { linenum?: number }>;
+  data: Array<Omit<SalesRow, "id" | "linestatus"> & { linenum?: number; linestatus?: string | null }>;
 }
 
 /** SAP ORCT → INAMT */

@@ -43,6 +43,7 @@ export interface SalesRow {
   docdate: string | null;
   basecard: string | null;
   totalsumsy: number | null;
+  linestatus: string | null;
 }
 
 export interface InamtRow {

@@ -70,6 +70,7 @@ async function fetchAllSalesQty(
       .from("SALES")
       .select("itemcode, quantity")
       .eq("basecard", cardcode)
+      .or("linestatus.eq.O,linestatus.is.null")
       .gte("docdate", startDate)
       .lte("docdate", endDate)
       .range(offset, offset + SALES_PAGE_SIZE - 1);

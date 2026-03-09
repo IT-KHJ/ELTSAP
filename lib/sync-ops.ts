@@ -51,7 +51,7 @@ export async function upsertItemlistBatch(
 }
 
 export async function upsertSalesBatch(
-  data: Array<Omit<SalesRow, "id"> & { linenum?: number }>,
+  data: Array<Omit<SalesRow, "id"> & { linenum?: number; linestatus?: string | null }>,
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
   const admin = getSupabaseAdmin();
@@ -66,6 +66,7 @@ export async function upsertSalesBatch(
     docdate: r.docdate ?? null,
     basecard: r.basecard ?? null,
     totalsumsy: r.totalsumsy ?? null,
+    linestatus: r.linestatus ?? "O",
   }));
   let inserted = 0;
   const total = rows.length;
