@@ -70,6 +70,8 @@ export interface ParetoRow {
   sales: number;
   cumulativeSales: number;
   cumulativePercent: number;
+  /** 개별 점유율 (매출 비중 %) - 1위가 가장 높음 */
+  sharePercent: number;
   rank: number;
 }
 

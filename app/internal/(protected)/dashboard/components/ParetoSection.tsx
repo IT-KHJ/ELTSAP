@@ -44,7 +44,7 @@ export function ParetoSection({ rows }: { rows: ParetoRow[] }) {
                       }}
                     />
                     <span className="text-xs text-gray-600 ml-1 shrink-0">
-                      {formatAmount(r.sales)} ({r.cumulativePercent.toFixed(1)}%)
+                      {formatAmount(r.sales)} ({r.sharePercent.toFixed(1)}%)
                     </span>
                   </div>
                 </div>

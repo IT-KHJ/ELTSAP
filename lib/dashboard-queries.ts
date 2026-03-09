@@ -393,12 +393,14 @@ export async function getParetoData(
   return sorted.slice(0, 10).map(([cardcode, a], i) => {
     cumulative += a.sales;
     const cumulativePercent = totalSales > 0 ? (cumulative / totalSales) * 100 : 0;
+    const sharePercent = totalSales > 0 ? (a.sales / totalSales) * 100 : 0;
     return {
       cardcode,
       aliasname: aliasMap[cardcode] ?? null,
       sales: a.sales,
       cumulativeSales: cumulative,
       cumulativePercent,
+      sharePercent,
       rank: i + 1,
     };
   });
