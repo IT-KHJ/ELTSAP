@@ -37,32 +37,46 @@ export function CustomerDetailModal({ data, loading, onClose }: CustomerDetailMo
 
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">기간별 매출 추이</h3>
-              <div className="overflow-x-auto">
-                <table className="report-table w-full text-sm">
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr>
-                      <th className="report-th py-0.5 px-2">월</th>
-                      <th className="report-th py-0.5 px-2">매출</th>
-                      <th className="report-th py-0.5 px-2">반품</th>
-                      <th className="report-th py-0.5 px-2">순매출</th>
+                    <tr className="bg-gray-100">
+                      <th className="py-2.5 px-3 text-left font-semibold text-gray-700 border-b border-gray-200">월</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">매출</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">반품</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">순매출</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.monthly.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="report-td py-4 text-center text-gray-500">
+                        <td colSpan={4} className="py-4 text-center text-gray-500 border-b border-gray-200">
                           데이터 없음
                         </td>
                       </tr>
                     ) : (
-                      data.monthly.map((m) => (
-                        <tr key={m.month}>
-                          <td className="report-td py-0.5 px-2">{m.month}</td>
-                          <td className="report-td report-td-num py-0.5 px-2">{formatAmount(m.sales)}</td>
-                          <td className="report-td report-td-num py-0.5 px-2">{formatAmount(m.returns)}</td>
-                          <td className="report-td report-td-num py-0.5 px-2">{formatAmount(m.netSales)}</td>
+                      <>
+                        {data.monthly.map((m) => (
+                          <tr key={m.month} className="hover:bg-gray-50/50">
+                            <td className="py-2 px-3 text-gray-900 border-b border-gray-200">{m.month}</td>
+                            <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{formatAmount(m.sales)}</td>
+                            <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{formatAmount(m.returns)}</td>
+                            <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{formatAmount(m.netSales)}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-semibold bg-gray-100">
+                          <td className="py-2.5 px-3 text-gray-900 border-b border-gray-300">합계</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 border-b border-gray-300">
+                            {formatAmount(data.monthly.reduce((s, m) => s + m.sales, 0))}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 border-b border-gray-300">
+                            {formatAmount(data.monthly.reduce((s, m) => s + m.returns, 0))}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-gray-900 border-b border-gray-300">
+                            {formatAmount(data.monthly.reduce((s, m) => s + m.netSales, 0))}
+                          </td>
                         </tr>
-                      ))
+                      </>
                     )}
                   </tbody>
                 </table>
@@ -71,32 +85,32 @@ export function CustomerDetailModal({ data, loading, onClose }: CustomerDetailMo
 
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">품목별 매출 (상위 30)</h3>
-              <div className="overflow-x-auto max-h-48 overflow-y-auto">
-                <table className="report-table w-full text-sm">
-                  <thead>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 bg-gray-100 z-10">
                     <tr>
-                      <th className="report-th py-0.5 px-2">품목코드</th>
-                      <th className="report-th py-0.5 px-2">품목명</th>
-                      <th className="report-th py-0.5 px-2">매출</th>
-                      <th className="report-th py-0.5 px-2">건수</th>
+                      <th className="py-2.5 px-3 text-left font-semibold text-gray-700 border-b border-gray-200">품목코드</th>
+                      <th className="py-2.5 px-3 text-left font-semibold text-gray-700 border-b border-gray-200">품목명</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">매출</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">건수</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.itemSales.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="report-td py-4 text-center text-gray-500">
+                        <td colSpan={4} className="py-4 text-center text-gray-500 border-b border-gray-200">
                           데이터 없음
                         </td>
                       </tr>
                     ) : (
                       data.itemSales.map((i) => (
-                        <tr key={i.itemcode}>
-                          <td className="report-td py-0.5 px-2">{i.itemcode}</td>
-                          <td className="report-td py-0.5 px-2 truncate max-w-[200px]" title={i.itemname ?? ""}>
+                        <tr key={i.itemcode} className="hover:bg-gray-50/50">
+                          <td className="py-2 px-3 text-gray-900 border-b border-gray-200">{i.itemcode}</td>
+                          <td className="py-2 px-3 truncate max-w-[200px] text-gray-700 border-b border-gray-200" title={i.itemname ?? ""}>
                             {i.itemname ?? "-"}
                           </td>
-                          <td className="report-td report-td-num py-0.5 px-2">{formatAmount(i.sales)}</td>
-                          <td className="report-td report-td-num py-0.5 px-2">{i.quantity}</td>
+                          <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{formatAmount(i.sales)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{i.quantity}</td>
                         </tr>
                       ))
                     )}
@@ -106,27 +120,33 @@ export function CustomerDetailModal({ data, loading, onClose }: CustomerDetailMo
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">반품 추이</h3>
-              <div className="overflow-x-auto">
-                <table className="report-table w-full text-sm">
-                  <thead>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">품목별 반품 (상위 30)</h3>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 bg-gray-100 z-10">
                     <tr>
-                      <th className="report-th py-0.5 px-2">월</th>
-                      <th className="report-th py-0.5 px-2">반품액</th>
+                      <th className="py-2.5 px-3 text-left font-semibold text-gray-700 border-b border-gray-200">품목코드</th>
+                      <th className="py-2.5 px-3 text-left font-semibold text-gray-700 border-b border-gray-200">품목명</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">반품</th>
+                      <th className="py-2.5 px-3 text-right font-semibold text-gray-700 border-b border-gray-200">건수</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.returnTrend.length === 0 ? (
+                    {data.itemReturns.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="report-td py-4 text-center text-gray-500">
+                        <td colSpan={4} className="py-4 text-center text-gray-500 border-b border-gray-200">
                           데이터 없음
                         </td>
                       </tr>
                     ) : (
-                      data.returnTrend.map((r) => (
-                        <tr key={r.month}>
-                          <td className="report-td py-0.5 px-2">{r.month}</td>
-                          <td className="report-td report-td-num py-0.5 px-2">{formatAmount(r.returns)}</td>
+                      data.itemReturns.map((i) => (
+                        <tr key={i.itemcode} className="hover:bg-gray-50/50">
+                          <td className="py-2 px-3 text-gray-900 border-b border-gray-200">{i.itemcode}</td>
+                          <td className="py-2 px-3 truncate max-w-[200px] text-gray-700 border-b border-gray-200" title={i.itemname ?? ""}>
+                            {i.itemname ?? "-"}
+                          </td>
+                          <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{formatAmount(i.returns)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums text-gray-700 border-b border-gray-200">{i.quantity}</td>
                         </tr>
                       ))
                     )}

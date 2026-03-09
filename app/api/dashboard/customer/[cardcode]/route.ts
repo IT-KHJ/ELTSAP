@@ -31,7 +31,7 @@ export async function GET(
     const startDate = toLocalDateString(new Date(sy, sm - 1, 1));
     const endDate = toLocalDateString(new Date(ey, em, 0));
 
-    const { monthly, itemSales, returnTrend, cardname } = await getCustomerDetail(
+    const { monthly, itemSales, itemReturns, cardname } = await getCustomerDetail(
       cardcode,
       startDate,
       endDate
@@ -42,7 +42,7 @@ export async function GET(
       cardname,
       monthly,
       itemSales,
-      returnTrend,
+      itemReturns,
       startDate,
       endDate,
     });

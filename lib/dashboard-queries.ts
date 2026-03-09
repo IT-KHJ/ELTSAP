@@ -13,6 +13,7 @@ import type {
   CustomerRankingRow,
   CustomerDetailMonthly,
   CustomerDetailItemSales,
+  CustomerDetailItemReturns,
   ParetoRow,
   DashboardInsightRow,
 } from "@/types/dashboard";
@@ -36,7 +37,13 @@ function addDay(dateStr: string): string {
   return toLocalDateString(date);
 }
 
-type SalesRowWithItem = { basecard: string | null; docdate: string | null; totalsumsy: number | null; itemcode?: string | null };
+type SalesRowWithItem = {
+  basecard: string | null;
+  docdate: string | null;
+  totalsumsy: number | null;
+  itemcode?: string | null;
+  quantity?: number | null;
+};
 
 /** basecard별 집계 결과 (RPC get_sales_by_basecard 호환) */
 interface CardAggregate {
@@ -251,7 +258,7 @@ async function fetchSalesWithItems(cardcode: string, startDate: string, endDate:
   while (true) {
     const { data } = await admin
       .from("SALES")
-      .select("basecard, docdate, totalsumsy, itemcode")
+      .select("basecard, docdate, totalsumsy, itemcode, quantity")
       .eq("basecard", cardcode)
       .or("linestatus.eq.O,linestatus.is.null")
       .gte("docdate", startDate)
@@ -265,7 +272,11 @@ async function fetchSalesWithItems(cardcode: string, startDate: string, endDate:
   return out;
 }
 
-/** 거래처 상세 (기간별 매출, 품목별, 반품 추이) */
+/** 거래처 상세 (기간별 매출, 품목별 매출, 품목별 반품)
+ * - monthly: get_sales_by_basecard와 동일 SQL 로직(RPC) 사용
+ * - itemSales: fetchSalesWithItems + quantity 합계 (totalsumsy > 0)
+ * - itemReturns: fetchSalesWithItems + quantity 합계 (totalsumsy < 0)
+ */
 export async function getCustomerDetail(
   cardcode: string,
   startDate: string,
@@ -273,52 +284,55 @@ export async function getCustomerDetail(
 ): Promise<{
   monthly: CustomerDetailMonthly[];
   itemSales: CustomerDetailItemSales[];
-  returnTrend: CustomerDetailMonthly[];
+  itemReturns: CustomerDetailItemReturns[];
   cardname: string | null;
 }> {
   const admin = getSupabaseAdmin();
-  const rows = await fetchSalesWithItems(cardcode, startDate, endDate);
 
-  const monthMap = new Map<string, { sales: number; returns: number }>();
+  const [monthlyRpc, rows] = await Promise.all([
+    admin.rpc("get_customer_detail_monthly", {
+      p_basecard: cardcode,
+      p_start: startDate,
+      p_end: endDate,
+    }),
+    fetchSalesWithItems(cardcode, startDate, endDate),
+  ]);
+
+  const monthlyRows = (monthlyRpc.data ?? []) as Array<{ month: string; sales: number; returns: number; net_sales: number }>;
+  const monthly: CustomerDetailMonthly[] = monthlyRows.map((r) => ({
+    month: r.month,
+    sales: Number(r.sales ?? 0) || 0,
+    returns: Number(r.returns ?? 0) || 0,
+    netSales: Number(r.net_sales ?? 0) || 0,
+  }));
+
   const itemMap = new Map<string, { sales: number; quantity: number }>();
-
+  const returnMap = new Map<string, { returns: number; quantity: number }>();
   for (const r of rows) {
     const amt = parseTotalsumsy(r.totalsumsy);
-    const month = r.docdate ? String(r.docdate).slice(0, 7) : "";
-    if (month) {
-      const m = monthMap.get(month) ?? { sales: 0, returns: 0 };
-      if (amt > 0) m.sales += amt;
-      else if (amt < 0) m.returns += amt;
-      monthMap.set(month, m);
-    }
-
+    const qty = Number(r.quantity ?? 0) || 0;
     const item = (r.itemcode ?? "").trim();
     if (item) {
-      const i = itemMap.get(item) ?? { sales: 0, quantity: 0 };
-      if (amt > 0) i.sales += amt;
-      i.quantity += 1;
-      itemMap.set(item, i);
+      if (amt > 0) {
+        const i = itemMap.get(item) ?? { sales: 0, quantity: 0 };
+        i.sales += amt;
+        i.quantity += qty;
+        itemMap.set(item, i);
+      } else if (amt < 0) {
+        const i = returnMap.get(item) ?? { returns: 0, quantity: 0 };
+        i.returns += amt;
+        i.quantity += qty;
+        returnMap.set(item, i);
+      }
     }
   }
 
-  const months = Array.from(monthMap.keys()).sort();
-  const monthly: CustomerDetailMonthly[] = months.map((m) => {
-    const v = monthMap.get(m)!;
-    return {
-      month: m,
-      sales: v.sales,
-      returns: v.returns,
-      netSales: v.sales + v.returns,
-    };
-  });
-
-  const returnTrend = monthly.map((x) => ({ month: x.month, sales: x.sales, returns: x.returns, netSales: x.netSales }));
-
-  const itemCodes = Array.from(itemMap.keys());
+  const allItemCodes = new Set([...Array.from(itemMap.keys()), ...Array.from(returnMap.keys())]);
   const itemNames: Record<string, string | null> = {};
-  if (itemCodes.length > 0) {
-    for (let i = 0; i < itemCodes.length; i += 500) {
-      const chunk = itemCodes.slice(i, i + 500);
+  if (allItemCodes.size > 0) {
+    const arr = Array.from(allItemCodes);
+    for (let i = 0; i < arr.length; i += 500) {
+      const chunk = arr.slice(i, i + 500);
       const { data } = await admin.from("ITEMLIST").select("itemcode, itemname").in("itemcode", chunk);
       (data ?? []).forEach((r: { itemcode: string; itemname: string | null }) => {
         itemNames[r.itemcode] = r.itemname;
@@ -336,10 +350,20 @@ export async function getCustomerDetail(
     .sort((a, b) => b.sales - a.sales)
     .slice(0, 30);
 
+  const itemReturns: CustomerDetailItemReturns[] = Array.from(returnMap.entries())
+    .map(([itemcode, v]) => ({
+      itemcode,
+      itemname: itemNames[itemcode] ?? null,
+      returns: v.returns,
+      quantity: v.quantity,
+    }))
+    .sort((a, b) => a.returns - b.returns)
+    .slice(0, 30);
+
   const { data: cust } = await admin.from("CUSTOMER").select("cardname").eq("cardcode", cardcode).maybeSingle();
   const cardname = (cust as { cardname?: string } | null)?.cardname ?? null;
 
-  return { monthly, itemSales, returnTrend, cardname };
+  return { monthly, itemSales, itemReturns, cardname };
 }
 
 /** Pareto (거래처 매출 집중도) - 상위 20위, aliasname 사용 */

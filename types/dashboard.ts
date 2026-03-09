@@ -47,12 +47,19 @@ export interface CustomerDetailItemSales {
   quantity: number;
 }
 
+export interface CustomerDetailItemReturns {
+  itemcode: string;
+  itemname: string | null;
+  returns: number;
+  quantity: number;
+}
+
 export interface CustomerDetailResponse {
   cardcode: string;
   cardname: string | null;
   monthly: CustomerDetailMonthly[];
   itemSales: CustomerDetailItemSales[];
-  returnTrend: CustomerDetailMonthly[];
+  itemReturns: CustomerDetailItemReturns[];
   startDate: string;
   endDate: string;
 }
