@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export type CustomerOption = { cardcode: string; cardname: string | null };
 
@@ -45,6 +45,7 @@ export function DashboardFilter({
   hasData,
 }: DashboardFilterProps) {
   const customerInputRef = useRef<HTMLInputElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   const startMonthValue = `${startYear}-${String(startMonth).padStart(2, "0")}`;
   const endMonthValue = `${endYear}-${String(endMonth).padStart(2, "0")}`;
@@ -66,9 +67,16 @@ export function DashboardFilter({
   };
 
   const handleCustomerFocus = () => {
+    setIsFocused(true);
     onSearchFocus();
     setTimeout(() => customerInputRef.current?.select(), 0);
   };
+
+  const handleCustomerBlur = () => {
+    setTimeout(() => setIsFocused(false), 150);
+  };
+
+  const displayOptions = [{ cardcode: "__ALL__", cardname: "전체" } as CustomerOption, ...options];
 
   return (
     <div className="filter-panel-no-print bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -105,19 +113,28 @@ export function DashboardFilter({
                 onCustomerSelect(null);
               }}
               onFocus={handleCustomerFocus}
-              placeholder="코드 또는 이름 입력 시 자동완성"
+              onBlur={handleCustomerBlur}
+              placeholder="전체 또는 코드/이름 입력"
               className="min-w-[320px] w-full max-w-md px-3 py-2 border border-gray-300 rounded text-sm"
             />
-            {options.length > 0 && (
+            {isFocused && (
               <ul className="absolute top-full left-0 mt-1 min-w-[320px] max-w-md list-none bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-auto z-10">
-                {options.map((c) => (
+                {displayOptions.map((c) => (
                   <li
                     key={c.cardcode}
                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm truncate"
-                    onClick={() => onCustomerSelect(c)}
-                    title={`${c.cardcode} ${c.cardname ?? ""}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      if (c.cardcode === "__ALL__") {
+                        onSearchChange("전체");
+                        onCustomerSelect(null);
+                      } else {
+                        onCustomerSelect(c);
+                      }
+                    }}
+                    title={c.cardcode === "__ALL__" ? "전체" : `${c.cardcode} ${c.cardname ?? ""}`}
                   >
-                    {c.cardcode} {c.cardname ?? ""}
+                    {c.cardcode === "__ALL__" ? "전체" : `${c.cardcode} ${c.cardname ?? ""}`}
                   </li>
                 ))}
               </ul>

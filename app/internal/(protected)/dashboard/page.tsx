@@ -44,7 +44,7 @@ function DashboardContent() {
   const [endYear, setEndYear] = useState(defaultPeriod.endYear);
   const [endMonth, setEndMonth] = useState(defaultPeriod.endMonth);
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("전체");
   const [options, setOptions] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
