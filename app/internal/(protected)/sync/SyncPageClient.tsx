@@ -67,6 +67,15 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
   const [maintenance, setMaintenance] = useState<MaintenanceForm>({ content: "", time_from: "", time_to: "" });
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [dailyAutoResults, setDailyAutoResults] = useState<{
+    customer_count: number;
+    itemlist_count: number;
+    inamt_count: number;
+    saleetc_count: number;
+    sales_count: number;
+    completed_at: string;
+    status: string;
+  } | null>(null);
 
   function toDatetimeLocal(iso: string | null): string {
     if (!iso) return "";
@@ -89,6 +98,17 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
           time_from: toDatetimeLocal(json.time_from),
           time_to: toDatetimeLocal(json.time_to),
         });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/sync/daily-auto-results")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json && typeof json === "object" && !json.error) {
+          setDailyAutoResults(json);
+        }
       })
       .catch(() => {});
   }, []);
@@ -227,13 +247,14 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
           </div>
         </section>
 
-        {/* 동기화 좌측 하단: 점검 정보 */}
+        {/* 동기화 하단: 점검 정보 + 자동 동기화 결과 */}
         <section className="mt-8">
           <h2 className="text-base font-semibold text-gray-800 mb-2">점검 정보</h2>
           <p className="text-gray-600 mb-4">
             점검중 페이지에 표시할 내용과 기간을 입력하세요. 비워두면 점검 페이지에서 표시되지 않습니다.
           </p>
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3">
+          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3 flex-1">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">점검 내용</label>
               <textarea
@@ -279,6 +300,29 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                 </span>
               )}
             </div>
+          </div>
+
+          {/* 점검 정보 우측: 오늘 자동 동기화 결과 */}
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-md space-y-2">
+            <h3 className="text-sm font-medium text-gray-700">오늘 자동 동기화 (매일 6시)</h3>
+            {dailyAutoResults ? (
+              <div className="space-y-1 text-sm text-gray-600">
+                <div>거래처: {dailyAutoResults.customer_count.toLocaleString()}건</div>
+                <div>품목: {dailyAutoResults.itemlist_count.toLocaleString()}건</div>
+                <div>입금: {dailyAutoResults.inamt_count.toLocaleString()}건</div>
+                <div>기타출고: {dailyAutoResults.saleetc_count.toLocaleString()}건</div>
+                <div>매출: {dailyAutoResults.sales_count.toLocaleString()}건</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {formatSyncDate(dailyAutoResults.completed_at)}
+                  {dailyAutoResults.status !== "success" && (
+                    <span className="text-amber-600 ml-1">({dailyAutoResults.status})</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">오늘 자동 동기화 없음</p>
+            )}
+          </div>
           </div>
         </section>
     </div>

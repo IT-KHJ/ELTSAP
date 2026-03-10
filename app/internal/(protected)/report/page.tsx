@@ -7,6 +7,7 @@ import { MONTHS, CATEGORY_BG, CATEGORY_OUP } from "@/lib/constants";
 import { useModal } from "@/lib/components/ModalProvider";
 import { FilterPanel, type CustomerOption } from "./components/FilterPanel";
 import { ReportContainer } from "./components/ReportContainer";
+import { buildReportExcel } from "@/lib/report-excel";
 import "./report-print.css";
 
 function getDefaultPeriod() {
@@ -66,6 +67,35 @@ export default function ReportPage() {
       setLoading(false);
     }
   };
+
+  const handleExcelDownload = useCallback(async () => {
+    if (!data) return;
+    try {
+      const blob = await buildReportExcel(data);
+      const defaultName = `거래처현황_${data.cardcode}_${data.startDate}_${data.endDate}.xlsx`;
+
+      const showSave = (window as Window & { showSaveFilePicker?: (o: { suggestedName?: string; types?: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
+      if (typeof showSave === "function") {
+        const handle = await showSave({
+          suggestedName: defaultName,
+          types: [{ description: "Excel 파일", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = defaultName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+      await modal.open({ type: "error", message: e instanceof Error ? e.message : "엑셀 다운로드 실패" });
+    }
+  }, [data, modal]);
 
   const renderChange = (current: number, previous: number) => {
     const { text, isIncrease } = formatChangePercent(current, previous);
@@ -150,6 +180,7 @@ export default function ReportPage() {
           onSearchFocus={() => searchCustomers(searchQuery)}
           onLoadReport={loadReport}
           onPrint={() => window.print()}
+          onExcelDownload={handleExcelDownload}
           loading={loading}
           hasData={!!data}
         />

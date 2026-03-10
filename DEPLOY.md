@@ -32,6 +32,7 @@
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key  
    - (선택) `SAP_SQL_SERVER`, `SAP_SQL_DATABASE`, `SAP_SQL_USER`, `SAP_SQL_PASSWORD` — SAP 직접 연동 시  
    - (선택) `SYNC_ITEMLIST_URL`, `SYNC_SALES_URL` 등 — 외부 동기화 API 사용 시  
+   - (선택) `CRON_SECRET` — 매일 6시 자동 동기화 Cron 보안용. 16자 이상 권장. 미설정 시 Cron 인증 생략.
 
    Production / Preview / Development 중 필요한 환경에 체크 후 저장.
 
@@ -78,7 +79,17 @@
 
 ---
 
-## 4. Supabase URL 허용 (인증)
+## 4. 매일 자동 동기화 (Cron)
+
+- **스케줄**: 매일 오전 6시(KST) = UTC 21:00 (`0 21 * * *`)
+- **순서**: 거래처 → 품목 → 입금 → 기타출고 → 매출 (증분)
+- **결과**: 설정 화면 점검 정보 영역 우측에 표시
+- **CRON_SECRET**: Vercel이 Cron 호출 시 `Authorization: Bearer <CRON_SECRET>` 헤더로 전달. 설정 시 해당 값 검증.
+- **마이그레이션**: `supabase/migrations/012_add_daily_auto_sync_results.sql` 적용 필요.
+
+---
+
+## 5. Supabase URL 허용 (인증)
 
 Supabase **Authentication → URL Configuration**에서  
 **Redirect URLs**에 Vercel 배포 URL을 추가해야 로그인 리다이렉트가 동작합니다.

@@ -21,6 +21,7 @@ interface FilterPanelProps {
   onSearchFocus: () => void;
   onLoadReport: () => void;
   onPrint: () => void;
+  onExcelDownload?: () => void;
   loading: boolean;
   hasData: boolean;
 }
@@ -42,6 +43,7 @@ export function FilterPanel({
   onSearchFocus,
   onLoadReport,
   onPrint,
+  onExcelDownload,
   loading,
   hasData,
 }: FilterPanelProps) {
@@ -143,6 +145,16 @@ export function FilterPanel({
           >
             {loading ? "조회 중..." : "조회"}
           </button>
+          {onExcelDownload && (
+            <button
+              type="button"
+              onClick={onExcelDownload}
+              disabled={!hasData}
+              className="h-10 px-5 border border-gray-300 bg-white text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              엑셀
+            </button>
+          )}
           <button
             type="button"
             onClick={onPrint}
