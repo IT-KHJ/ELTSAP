@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const admin = getSupabaseAdmin();
     const { data: cust } = await admin
-      .from("CUSTOMER")
+      .from("customer")
       .select("cardname")
       .eq("cardcode", cardcode)
       .maybeSingle();

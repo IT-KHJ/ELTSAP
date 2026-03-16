@@ -186,7 +186,7 @@ export async function getCustomerRanking(
   const nameMap: Record<string, { cardname: string | null; aliasname: string | null }> = {};
   for (let i = 0; i < cardcodes.length; i += 500) {
     const chunk = cardcodes.slice(i, i + 500);
-    const { data } = await admin.from("CUSTOMER").select("cardcode, cardname, aliasname").in("cardcode", chunk);
+    const { data } = await admin.from("customer").select("cardcode, cardname, aliasname").in("cardcode", chunk);
     (data ?? []).forEach((r: { cardcode: string; cardname: string | null; aliasname: string | null }) => {
       nameMap[r.cardcode] = { cardname: r.cardname, aliasname: r.aliasname };
     });
@@ -257,7 +257,7 @@ async function fetchSalesWithItems(cardcode: string, startDate: string, endDate:
   const endExclusive = addDay(endDate);
   while (true) {
     const { data } = await admin
-      .from("SALES")
+      .from("sales")
       .select("basecard, docdate, totalsumsy, itemcode, quantity")
       .eq("basecard", cardcode)
       .or("linestatus.eq.O,linestatus.is.null")
@@ -333,7 +333,7 @@ export async function getCustomerDetail(
     const arr = Array.from(allItemCodes);
     for (let i = 0; i < arr.length; i += 500) {
       const chunk = arr.slice(i, i + 500);
-      const { data } = await admin.from("ITEMLIST").select("itemcode, itemname").in("itemcode", chunk);
+      const { data } = await admin.from("itemlist").select("itemcode, itemname").in("itemcode", chunk);
       (data ?? []).forEach((r: { itemcode: string; itemname: string | null }) => {
         itemNames[r.itemcode] = r.itemname;
       });
@@ -360,7 +360,7 @@ export async function getCustomerDetail(
     .sort((a, b) => a.returns - b.returns)
     .slice(0, 30);
 
-  const { data: cust } = await admin.from("CUSTOMER").select("cardname").eq("cardcode", cardcode).maybeSingle();
+  const { data: cust } = await admin.from("customer").select("cardname").eq("cardcode", cardcode).maybeSingle();
   const cardname = (cust as { cardname?: string } | null)?.cardname ?? null;
 
   return { monthly, itemSales, itemReturns, cardname };
@@ -379,7 +379,7 @@ export async function getParetoData(
   if (cardcodes.length > 0) {
     for (let i = 0; i < cardcodes.length; i += 500) {
       const chunk = cardcodes.slice(i, i + 500);
-      const { data } = await admin.from("CUSTOMER").select("cardcode, aliasname").in("cardcode", chunk);
+      const { data } = await admin.from("customer").select("cardcode, aliasname").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });
@@ -430,7 +430,7 @@ export async function getDashboardInsights(
     const arr = Array.from(allCards);
     for (let i = 0; i < arr.length; i += 500) {
       const chunk = arr.slice(i, i + 500);
-      const { data } = await admin.from("CUSTOMER").select("cardcode, aliasname").in("cardcode", chunk);
+      const { data } = await admin.from("customer").select("cardcode, aliasname").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });

@@ -67,7 +67,7 @@ async function fetchAllSalesQty(
   let offset = 0;
   while (true) {
     const { data } = await admin
-      .from("SALES")
+      .from("sales")
       .select("itemcode, quantity")
       .eq("basecard", cardcode)
       .or("linestatus.eq.O,linestatus.is.null")
@@ -149,14 +149,14 @@ export async function getInamtMonthly(
 ) {
   const admin = getSupabaseAdmin();
   const { data: currentRaw } = await admin
-    .from("INAMT")
+    .from("inamt")
     .select("docdate, doctotal")
     .eq("cardcode", cardcode)
     .gte("docdate", startDate)
     .lte("docdate", endDate);
 
   const { data: previousRaw } = await admin
-    .from("INAMT")
+    .from("inamt")
     .select("docdate, doctotal")
     .eq("cardcode", cardcode)
     .gte("docdate", previousStart)
@@ -205,14 +205,14 @@ export async function getGiftQtyMonthly(
 ) {
   const admin = getSupabaseAdmin();
   const { data: currentRaw } = await admin
-    .from("SALEETC")
+    .from("saleetc")
     .select("docdate, quantity")
     .eq("basecard", cardcode)
     .gte("docdate", startDate)
     .lte("docdate", endDate);
 
   const { data: previousRaw } = await admin
-    .from("SALEETC")
+    .from("saleetc")
     .select("docdate, quantity")
     .eq("basecard", cardcode)
     .gte("docdate", previousStart)
@@ -281,7 +281,7 @@ export async function getTopItems(
   if (allCodes.size === 0) return [];
 
   const { data: namesRaw } = await admin
-    .from("ITEMLIST")
+    .from("itemlist")
     .select("itemcode, itemname")
     .in("itemcode", Array.from(allCodes));
 
@@ -342,7 +342,7 @@ export async function getTopBrands(
   for (let i = 0; i < codesArr.length; i += ITEMLIST_BATCH_SIZE) {
     const chunk = codesArr.slice(i, i + ITEMLIST_BATCH_SIZE);
     const { data: itemsRaw } = await admin
-      .from("ITEMLIST")
+      .from("itemlist")
       .select("itemcode, brand")
       .in("itemcode", chunk);
     type ItemBrandRow = { itemcode: string; brand: string | null };

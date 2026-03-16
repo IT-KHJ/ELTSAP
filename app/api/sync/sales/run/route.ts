@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
       docdate: (r.docdate as string) ?? null,
       basecard: (r.basecard as string) ?? null,
       totalsumsy: (r.totalsumsy as number) ?? null,
+      vatsumsy: (r.vatsumsy as number) ?? null,
     }));
     const result = await upsertSalesBatch(rows);
     if (result.success) {

@@ -43,6 +43,7 @@ export interface SalesRow {
   docdate: string | null;
   basecard: string | null;
   totalsumsy: number | null;
+  vatsumsy: number | null;
   linestatus: string | null;
 }
 
@@ -66,11 +67,11 @@ export interface SaleetcRow {
 export interface Database {
   public: {
     Tables: {
-      CUSTOMER: { Row: CustomerRow; Insert: Omit<CustomerRow, never>; Update: Partial<CustomerRow> };
-      ITEMLIST: { Row: ItemlistRow; Insert: ItemlistRow; Update: Partial<ItemlistRow> };
-      SALES: { Row: SalesRow; Insert: Omit<SalesRow, "id">; Update: Partial<SalesRow> };
-      INAMT: { Row: InamtRow; Insert: InamtRow; Update: Partial<InamtRow> };
-      SALEETC: { Row: SaleetcRow; Insert: Omit<SaleetcRow, "id">; Update: Partial<SaleetcRow> };
+      customer: { Row: CustomerRow; Insert: Omit<CustomerRow, never>; Update: Partial<CustomerRow> };
+      itemlist: { Row: ItemlistRow; Insert: ItemlistRow; Update: Partial<ItemlistRow> };
+      sales: { Row: SalesRow; Insert: Omit<SalesRow, "id">; Update: Partial<SalesRow> };
+      inamt: { Row: InamtRow; Insert: InamtRow; Update: Partial<InamtRow> };
+      saleetc: { Row: SaleetcRow; Insert: Omit<SaleetcRow, "id">; Update: Partial<SaleetcRow> };
     };
   };
 }

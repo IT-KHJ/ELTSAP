@@ -26,7 +26,7 @@ async function main() {
   console.log("=== SALES 조회 (2025-01-01 ~ 2025-12-31) ===\n");
 
   const { data, error } = await supabase
-    .from("SALES")
+    .from("sales")
     .select("basecard, docdate, totalsumsy")
     .or("linestatus.eq.O,linestatus.is.null")
     .gte("docdate", startDate)
@@ -43,7 +43,7 @@ async function main() {
 
   // 전체 건수
   const { count } = await supabase
-    .from("SALES")
+    .from("sales")
     .select("id", { count: "exact", head: true })
     .or("linestatus.eq.O,linestatus.is.null")
     .gte("docdate", startDate)
@@ -53,7 +53,7 @@ async function main() {
 
   // docdate min/max
   const { data: range } = await supabase
-    .from("SALES")
+    .from("sales")
     .select("docdate")
     .or("linestatus.eq.O,linestatus.is.null")
     .gte("docdate", startDate)
@@ -62,7 +62,7 @@ async function main() {
     .limit(1);
 
   const { data: rangeMax } = await supabase
-    .from("SALES")
+    .from("sales")
     .select("docdate")
     .or("linestatus.eq.O,linestatus.is.null")
     .gte("docdate", startDate)

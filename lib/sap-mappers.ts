@@ -68,6 +68,7 @@ export function mapSapRowToSales(r: Record<string, unknown>, index: number): Omi
     docdate: toDate(r.docdate ?? r.DocDate),
     basecard: toStr(r.basecard ?? r.BaseCard),
     totalsumsy: toNum(r.totalsumsy ?? r.TotalSumSy),
+    vatsumsy: toNum(r.vatsumsy ?? r.VatSumSy),
     linestatus: linestatus === "" ? "O" : linestatus,
   };
 }

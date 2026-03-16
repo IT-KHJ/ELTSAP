@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get("q")?.trim() ?? "";
 
     const admin = getSupabaseAdmin();
-    let query = admin.from("CUSTOMER").select("cardcode, cardname").order("cardname");
+    let query = admin.from("customer").select("cardcode, cardname").order("cardname");
 
     if (q.length > 0) {
       query = query.or(`cardcode.ilike.%${q}%,cardname.ilike.%${q}%`);

@@ -19,7 +19,7 @@ export async function upsertCustomerBatch(
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
     const chunk = data.slice(i, i + BATCH_SIZE);
     const { data: upserted, error } = await admin
-      .from("CUSTOMER")
+      .from("customer")
       .upsert(chunk, { onConflict: "cardcode" })
       .select("cardcode");
     if (error) return { success: false, inserted, updated, error: error.message };
@@ -40,7 +40,7 @@ export async function upsertItemlistBatch(
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
     const chunk = data.slice(i, i + BATCH_SIZE);
     const { data: upserted, error } = await admin
-      .from("ITEMLIST")
+      .from("itemlist")
       .upsert(chunk, { onConflict: "itemcode" })
       .select("itemcode");
     if (error) return { success: false, inserted, updated: 0, error: error.message };
@@ -66,6 +66,7 @@ export async function upsertSalesBatch(
     docdate: r.docdate ?? null,
     basecard: r.basecard ?? null,
     totalsumsy: r.totalsumsy ?? null,
+    vatsumsy: r.vatsumsy ?? null,
     linestatus: r.linestatus ?? "O",
   }));
   let inserted = 0;
@@ -73,7 +74,7 @@ export async function upsertSalesBatch(
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const chunk = rows.slice(i, i + BATCH_SIZE);
     const { data: upserted, error } = await admin
-      .from("SALES")
+      .from("sales")
       .upsert(chunk, { onConflict: "docentry,linenum" })
       .select("docentry");
     if (error) return { success: false, inserted, updated: 0, error: error.message };
@@ -93,7 +94,7 @@ export async function upsertInamtBatch(
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
     const chunk = data.slice(i, i + BATCH_SIZE);
     const { data: upserted, error } = await admin
-      .from("INAMT")
+      .from("inamt")
       .upsert(chunk, { onConflict: "docentry" })
       .select("docentry");
     if (error) return { success: false, inserted, updated: 0, error: error.message };
@@ -121,7 +122,7 @@ export async function upsertSaleetcBatch(
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const chunk = rows.slice(i, i + BATCH_SIZE);
     const { data: upserted, error } = await admin
-      .from("SALEETC")
+      .from("saleetc")
       .upsert(chunk, { onConflict: "docentry,linenum" })
       .select("docentry");
     if (error) return { success: false, inserted, updated: 0, error: error.message };

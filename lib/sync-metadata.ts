@@ -103,11 +103,11 @@ export async function getAllSyncMetadataWithError(): Promise<{ data: SyncMetadat
 }
 
 const ENTITY_TO_TABLE: Record<SyncEntityType, string> = {
-  customer: "CUSTOMER",
-  itemlist: "ITEMLIST",
-  sales: "SALES",
-  inamt: "INAMT",
-  saleetc: "SALEETC",
+  customer: "customer",
+  itemlist: "itemlist",
+  sales: "sales",
+  inamt: "inamt",
+  saleetc: "saleetc",
 };
 
 /** 각 엔티티 테이블의 누적 행 수 조회 */
