@@ -9,8 +9,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/internal/maintenance', request.url));
   }
 
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', path);
+
   let response = NextResponse.next({
-    request: { headers: request.headers },
+    request: { headers: requestHeaders },
   });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,12 +30,12 @@ export async function middleware(request: NextRequest) {
       },
       set(name: string, value: string, options: CookieOptions) {
         request.cookies.set({ name, value, ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         response.cookies.set({ name, value, ...options });
       },
       remove(name: string, options: CookieOptions) {
         request.cookies.set({ name, value: '', ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         response.cookies.set({ name, value: '', ...options });
       },
     },

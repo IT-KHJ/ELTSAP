@@ -1,21 +1,28 @@
 import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';
 import Image from 'next/image';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getDisplayName } from '@/lib/user-profiles';
+import { getUserMenuPermissions } from '@/lib/menu-permissions';
 import { SessionMonitor } from './components/SessionMonitor';
 import { LogoutButton } from './components/LogoutButton';
 import { ModalProvider } from '@/lib/components/ModalProvider';
 
-function getNavItems(isAdmin: boolean) {
-  const items = [
-    { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄', adminOnly: false },
-    { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋', adminOnly: false },
-    { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋', adminOnly: false },
-    { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: '📊', adminOnly: false },
-    { label: '설정', href: '/internal/sync', icon: '⚙️', adminOnly: true },
-  ];
-  return items.filter((item) => !item.adminOnly || isAdmin);
+const NAV_ITEMS = [
+  { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄' },
+  { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋' },
+  { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋' },
+  { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: '📊' },
+  { label: '설정', href: '/internal/sync', icon: '⚙️' },
+  { label: '권한 관리', href: '/internal/permissions', icon: '🔐' },
+] as const;
+
+function getNavItems(allowedPaths: string[]) {
+  const set = new Set(allowedPaths);
+  return NAV_ITEMS.filter((item) => set.has(item.href));
 }
 
 async function getAuthenticatedUser() {
@@ -48,8 +55,15 @@ export default async function ProtectedLayout({
   if (!auth) redirect('/internal/login');
 
   const { user, isAdmin } = auth;
-  const navItems = getNavItems(isAdmin);
+  const allowedPaths = await getUserMenuPermissions(user.email ?? '', isAdmin);
+  const navItems = getNavItems(allowedPaths);
   const displayName = await getDisplayName(user.email) ?? user.email ?? '사용자';
+
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') ?? '';
+  const isInternalPath = pathname.startsWith('/internal');
+  const isAllowedPath = pathname === '/internal' || pathname === '/internal/' || allowedPaths.includes(pathname);
+  if (isInternalPath && !isAllowedPath) redirect('/internal/unauthorized');
 
   return (
     <ModalProvider>

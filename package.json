@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:clean": "node -e \"const fs=require('fs'); const p='.next'; if(fs.existsSync(p)){ try{ fs.rmSync(p,{recursive:true}); console.log('캐시(.next) 삭제 완료'); }catch(e){ console.warn('캐시 삭제 실패:', e.message); } }\" && next build",
     "start": "next start",
     "lint": "next lint",
     "query:supabase": "tsx scripts/query-supabase.ts"

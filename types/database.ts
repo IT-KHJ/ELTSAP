@@ -64,6 +64,18 @@ export interface SaleetcRow {
   basecard: string | null;
 }
 
+export interface MenuRow {
+  id: string;
+  path: string;
+  label: string;
+  sort_order: number;
+}
+
+export interface UserMenuPermissionRow {
+  email: string;
+  menu_id: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -72,6 +84,8 @@ export interface Database {
       sales: { Row: SalesRow; Insert: Omit<SalesRow, "id">; Update: Partial<SalesRow> };
       inamt: { Row: InamtRow; Insert: InamtRow; Update: Partial<InamtRow> };
       saleetc: { Row: SaleetcRow; Insert: Omit<SaleetcRow, "id">; Update: Partial<SaleetcRow> };
+      menus: { Row: MenuRow; Insert: MenuRow; Update: Partial<MenuRow> };
+      user_menu_permissions: { Row: UserMenuPermissionRow; Insert: UserMenuPermissionRow; Update: Partial<UserMenuPermissionRow> };
     };
   };
 }
