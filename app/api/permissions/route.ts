@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     if (delError) throw new Error(delError.message);
 
     if (menuIds.length > 0) {
-      const rows = menuIds.map((menu_id) => ({ email, menu_id }));
+      const rows = menuIds.map((menu_id: string) => ({ email, menu_id }));
       const { error: insError } = await supabase.from('user_menu_permissions').insert(rows);
       if (insError) throw new Error(insError.message);
     }
