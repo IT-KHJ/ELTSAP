@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim() : '';
-    const menuIds = Array.isArray(body.menuIds) ? body.menuIds.filter((id): id is string => typeof id === 'string') : [];
+    const menuIds = Array.isArray(body.menuIds) ? body.menuIds.filter((id: unknown): id is string => typeof id === 'string') : [];
 
     if (!email) return NextResponse.json({ error: 'email이 필요합니다.' }, { status: 400 });
 
