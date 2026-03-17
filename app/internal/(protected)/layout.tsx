@@ -10,6 +10,8 @@ import { ModalProvider } from '@/lib/components/ModalProvider';
 function getNavItems(isAdmin: boolean) {
   const items = [
     { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄', adminOnly: false },
+    { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋', adminOnly: false },
+    { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋', adminOnly: false },
     { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: '📊', adminOnly: false },
     { label: '설정', href: '/internal/sync', icon: '⚙️', adminOnly: true },
   ];

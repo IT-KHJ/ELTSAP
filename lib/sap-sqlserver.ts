@@ -382,6 +382,130 @@ export async function querySapSaleetcDateRange(
   }
 }
 
+/** DLN1 + ODLN → 거래처 현황(판매기준) 실시간 조회. docdate 범위, cardcode 필터, ocrcode='24021' */
+export async function querySapDln1SalesStatus(
+  startDate: string,
+  endDate: string,
+  cardcode?: string | null
+): Promise<Record<string, unknown>[]> {
+  const pool = await getPool();
+  try {
+    const startYmd = startDate.replace(/-/g, "");
+    const endYmd = endDate.replace(/-/g, "");
+    const req = pool
+      .request()
+      .input("startDate", sql.VarChar(8), startYmd)
+      .input("endDate", sql.VarChar(8), endYmd);
+    const cardFilter =
+      cardcode && cardcode.trim() ? `AND o.cardcode = @cardcode` : "AND o.cardcode LIKE '%'";
+    if (cardcode && cardcode.trim()) {
+      req.input("cardcode", sql.VarChar(50), cardcode.trim());
+    }
+    const result = await req.query(`
+      SELECT
+        a.docdate AS docdate,
+        a.basecard AS basecard,
+        a.cardname AS cardname,
+        a.aliasname AS aliasname,
+        a.itemcode AS itemcode,
+        a.itemname AS itemname,
+        a.price AS price,
+        ROUND(a.demrate, 0) AS supply_rate,
+        ROUND(a.disrate, 0) AS discount_rate,
+        a.quantity AS quantity,
+        a.totalsumsy AS totalsumsy,
+        a.vatamt AS vatamt,
+        a.returnamt AS returnamt
+      FROM (
+        SELECT
+          a.docdate,
+          a.basecard,
+          b.cardname,
+          b.aliasname,
+          a.itemcode,
+          (SELECT itemname FROM OITM WHERE itemcode = a.itemcode) AS itemname,
+          a.pricebefdi AS price,
+          100 - a.discprcnt AS demrate,
+          a.discprcnt AS disrate,
+          a.price AS disprice,
+          a.quantity,
+          a.totalsumsy,
+          a.vatsumsy AS vatamt,
+          CASE WHEN a.totalsumsy < 0 THEN a.totalsumsy ELSE 0 END AS returnamt
+        FROM DLN1 a
+        INNER JOIN OCRD b ON a.basecard = b.cardcode
+        WHERE a.docentry IN (
+          SELECT docentry FROM ODLN o
+          WHERE o.docdate >= @startDate AND o.docdate <= @endDate
+          AND o.canceled = 'N'
+          ${cardFilter}
+        )
+        AND a.ocrcode = '24021'
+        AND a.linestatus = 'O'
+      ) a
+    `);
+    return (result.recordset ?? []) as Record<string, unknown>[];
+  } finally {
+    await pool.close();
+  }
+}
+
+/** DLN1 + ODLN → 거래처 현황(판매기준) B안 그룹화 조회. docdate 범위, ocrcode='24021' */
+export async function querySapDln1SalesStatusGrouped(
+  startDate: string,
+  endDate: string,
+  salesType: "all" | "sales" | "return"
+): Promise<Record<string, unknown>[]> {
+  const pool = await getPool();
+  try {
+    const startYmd = startDate.replace(/-/g, "");
+    const endYmd = endDate.replace(/-/g, "");
+    const salesFilter =
+      salesType === "sales"
+        ? "AND a.totalsumsy > 0"
+        : salesType === "return"
+          ? "AND a.totalsumsy < 0"
+          : "";
+    const result = await pool
+      .request()
+      .input("startDate", sql.VarChar(8), startYmd)
+      .input("endDate", sql.VarChar(8), endYmd)
+      .query(`
+        SELECT
+          a.basecard AS basecard,
+          a.cardname AS cardname,
+          SUM(a.quantity) AS quantity,
+          SUM(a.totalsumsy) AS sales_amount,
+          SUM(a.vatamt) AS vat_amount,
+          SUM(a.totalamt) AS total_amount,
+          ABS(SUM(a.returnamt)) AS return_amount
+        FROM (
+          SELECT
+            a.basecard,
+            (SELECT cardname FROM OCRD WHERE cardcode = a.basecard) AS cardname,
+            a.quantity,
+            a.totalsumsy,
+            a.vatsumsy AS vatamt,
+            a.totalsumsy + a.vatsumsy AS totalamt,
+            CASE WHEN a.totalsumsy < 0 THEN a.totalsumsy ELSE 0 END AS returnamt
+          FROM DLN1 a
+          WHERE a.docentry IN (
+            SELECT docentry FROM ODLN o
+            WHERE o.docdate >= @startDate AND o.docdate <= @endDate
+            AND o.canceled = 'N'
+          )
+          AND a.ocrcode = '24021'
+          AND a.linestatus = 'O'
+          ${salesFilter}
+        ) a
+        GROUP BY a.basecard, a.cardname
+      `);
+    return (result.recordset ?? []) as Record<string, unknown>[];
+  } finally {
+    await pool.close();
+  }
+}
+
 /** IGE1 + OIGE → 기타출고 (2024-01-01 이후, canceled='N'). 동일 거래처 조건 적용. since 있으면 OIGE 기준 증분 */
 export async function querySapSaleetc(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();
