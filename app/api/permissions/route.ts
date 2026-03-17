@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 function isAdminUser(user: { email?: string | null; user_metadata?: unknown; app_metadata?: unknown } | null): boolean {
   if (!user) return false;
-  return (
+  return Boolean(
     (user.user_metadata as { role?: string } | null)?.role === 'admin' ||
     (user.app_metadata as { role?: string } | null)?.role === 'admin' ||
     (process.env.ADMIN_EMAILS &&
