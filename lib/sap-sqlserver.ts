@@ -382,6 +382,105 @@ export async function querySapSaleetcDateRange(
   }
 }
 
+/** ODLN CreateDate/UpdateDate 범위 조회 (orders 증분 동기화용) */
+export async function querySapOrdersDateRange(
+  since?: string | null
+): Promise<{ minCreateDate: string | null; maxCreateDate: string | null; minUpdateDate: string | null; maxUpdateDate: string | null }> {
+  const pool = await getPool();
+  try {
+    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    if (since) req.input("since", sql.VarChar(10), since);
+    const incClause = since ? incrementalClause("o") : "";
+    const result = await req.query(`
+      SELECT
+        CONVERT(VARCHAR(23), MIN(o.CreateDate), 121) as minCreateDate,
+        CONVERT(VARCHAR(23), MAX(o.CreateDate), 121) as maxCreateDate,
+        CONVERT(VARCHAR(23), MIN(o.UpdateDate), 121) as minUpdateDate,
+        CONVERT(VARCHAR(23), MAX(o.UpdateDate), 121) as maxUpdateDate
+      FROM DLN1 i
+      INNER JOIN ODLN o ON o.docentry = i.docentry
+      WHERE o.cardcode IN (SELECT cardcode FROM OCRD WHERE groupcode IN ('100','104') AND u_costcd = '24021')
+      AND o.docdate >= @minDate AND o.canceled = 'N'
+      AND i.ocrcode = '24021'
+      ${incClause}
+    `);
+    const row = (result.recordset ?? [])[0] as Record<string, unknown> | undefined;
+    const fmt = (v: unknown) => (v != null && String(v).trim() !== "" ? String(v).trim() : null);
+    return {
+      minCreateDate: fmt(row?.minCreateDate),
+      maxCreateDate: fmt(row?.maxCreateDate),
+      minUpdateDate: fmt(row?.minUpdateDate),
+      maxUpdateDate: fmt(row?.maxUpdateDate),
+    };
+  } finally {
+    await pool.close();
+  }
+}
+
+/** ODLN docentry 조회 (증분 동기화 삭제용). since 이후 CreateDate/UpdateDate 변경된 문서 - canceled 포함 */
+export async function querySapOrdersTouchedDocentries(since: string): Promise<number[]> {
+  const pool = await getPool();
+  try {
+    const req = pool
+      .request()
+      .input("minDate", sql.VarChar(10), DATE_MIN_SYNC)
+      .input("since", sql.VarChar(10), since);
+    const result = await req.query(`
+      SELECT DISTINCT o.docentry
+      FROM ODLN o
+      WHERE o.cardcode IN (SELECT cardcode FROM OCRD WHERE groupcode IN ('100','104') AND u_costcd = '24021')
+        AND o.docdate >= @minDate
+        AND (CAST(o.CreateDate AS DATE) >= CAST(@since AS DATE) OR CAST(o.UpdateDate AS DATE) >= CAST(@since AS DATE))
+    `);
+    const rows = (result.recordset ?? []) as Array<{ docentry: number }>;
+    return rows.map((r) => Number(r.docentry) || 0).filter((id) => id > 0);
+  } finally {
+    await pool.close();
+  }
+}
+
+/** DLN1 + ODLN → orders 동기화. since 있으면 증분(ODLN CreateDate/UpdateDate), 없으면 전체(docdate >= 2024-01-01) */
+export async function querySapOrders(since?: string | null): Promise<Record<string, unknown>[]> {
+  const pool = await getPool();
+  try {
+    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    if (since) {
+      req.input("since", sql.VarChar(10), since);
+    }
+    const incClause = since ? incrementalClause("o") : "";
+    const result = await req.query(`
+      SELECT
+        i.docentry,
+        ISNULL(i.LineNum, 0) AS linenum,
+        o.docdate AS docdate,
+        i.basecard AS basecard,
+        b.cardname AS cardname,
+        b.aliasname AS aliasname,
+        i.itemcode AS itemcode,
+        (SELECT itemname FROM OITM WHERE itemcode = i.itemcode) AS itemname,
+        i.pricebefdi AS price,
+        ROUND(100 - ISNULL(i.discprcnt, 0), 0) AS supply_rate,
+        ROUND(ISNULL(i.discprcnt, 0), 0) AS discount_rate,
+        i.quantity,
+        i.totalsumsy,
+        i.vatsumsy AS vatamt,
+        CASE WHEN i.totalsumsy < 0 THEN i.totalsumsy ELSE 0 END AS returnamt
+      FROM DLN1 i
+      INNER JOIN ODLN o ON o.docentry = i.docentry
+      INNER JOIN OCRD b ON i.basecard = b.cardcode
+      WHERE o.cardcode IN (SELECT cardcode FROM OCRD WHERE groupcode IN ('100','104') AND u_costcd = '24021')
+      AND o.docdate >= @minDate
+      AND o.canceled = 'N'
+      AND ISNULL(i.ocrcode, '') = '24021'
+      AND ISNULL(i.LineStatus, 'O') = 'O'
+      ${incClause}
+    `);
+    return (result.recordset ?? []) as Record<string, unknown>[];
+  } finally {
+    await pool.close();
+  }
+}
+
 /** DLN1 + ODLN → 거래처 현황(판매기준) 실시간 조회. docdate 범위, cardcode 필터, ocrcode='24021' */
 export async function querySapDln1SalesStatus(
   startDate: string,

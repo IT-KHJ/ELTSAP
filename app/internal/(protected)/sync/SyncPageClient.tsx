@@ -16,6 +16,7 @@ const SYNC_ITEMS = [
   { label: "매출 동기화", path: "/api/sync/sales/run", entityType: "sales" },
   { label: "입금 동기화", path: "/api/sync/inamt/run", entityType: "inamt" },
   { label: "기타출고 동기화", path: "/api/sync/saleetc/run", entityType: "saleetc" },
+  { label: "판매 동기화", path: "/api/sync/orders/run", entityType: "orders" },
 ] as const;
 
 function formatSyncDate(iso: string | null): string {

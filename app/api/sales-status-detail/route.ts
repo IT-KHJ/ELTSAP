@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSalesStatusDetail } from "@/lib/sales-status-grouped-queries";
+import { getSalesStatusDetailFromOrders } from "@/lib/orders-queries";
 
-/** GET: B안 거래처 현황 상세 조회. start, end, cardcode, salesType? */
+/** GET: B안 거래처 현황 상세 조회. start, end, cardcode, salesType? (Supabase orders 기반) */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const rows = await getSalesStatusDetail(start, end, cardcode, salesType);
+    const rows = await getSalesStatusDetailFromOrders(start, end, cardcode, salesType);
     return NextResponse.json({ rows });
   } catch (e) {
     const message = e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.";

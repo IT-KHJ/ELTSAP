@@ -3,7 +3,7 @@
  * SQL Server 반환 타입(null, Date, number) 정규화.
  */
 
-import type { CustomerRow, ItemlistRow, SalesRow, InamtRow, SaleetcRow } from "@/types/database";
+import type { CustomerRow, ItemlistRow, SalesRow, InamtRow, SaleetcRow, OrdersRow } from "@/types/database";
 
 function toStr(v: unknown): string | null {
   if (v == null) return null;
@@ -90,5 +90,26 @@ export function mapSapRowToSaleetc(r: Record<string, unknown>, index: number): O
     quantity: toNum(r.quantity ?? r.Quantity),
     docdate: toDate(r.docdate ?? r.DocDate),
     basecard: toStr(r.basecard ?? r.BaseCard),
+  };
+}
+
+export function mapSapRowToOrders(r: Record<string, unknown>, index: number): OrdersRow {
+  const totalsumsy = toNum(r.totalsumsy ?? r.TotalSumSy);
+  return {
+    docentry: Number(r.docentry ?? r.DocEntry ?? 0),
+    linenum: Number(r.linenum ?? r.LineNum ?? index),
+    docdate: toDate(r.docdate ?? r.DocDate),
+    basecard: toStr(r.basecard ?? r.BaseCard),
+    cardname: toStr(r.cardname ?? r.CardName),
+    aliasname: toStr(r.aliasname ?? r.AliasName),
+    itemcode: toStr(r.itemcode ?? r.ItemCode),
+    itemname: toStr(r.itemname ?? r.ItemName),
+    price: toNum(r.price ?? r.Price),
+    supply_rate: toNum(r.supply_rate ?? r.SupplyRate),
+    discount_rate: toNum(r.discount_rate ?? r.DiscountRate),
+    quantity: toNum(r.quantity ?? r.Quantity),
+    totalsumsy,
+    vatamt: toNum(r.vatamt ?? r.VatAmt),
+    returnamt: totalsumsy != null && totalsumsy < 0 ? Math.abs(totalsumsy) : 0,
   };
 }

@@ -64,6 +64,24 @@ export interface SaleetcRow {
   basecard: string | null;
 }
 
+export interface OrdersRow {
+  docentry: number;
+  linenum: number;
+  docdate: string | null;
+  basecard: string | null;
+  cardname: string | null;
+  aliasname: string | null;
+  itemcode: string | null;
+  itemname: string | null;
+  price: number | null;
+  supply_rate: number | null;
+  discount_rate: number | null;
+  quantity: number | null;
+  totalsumsy: number | null;
+  vatamt: number | null;
+  returnamt: number | null;
+}
+
 export interface MenuRow {
   id: string;
   path: string;

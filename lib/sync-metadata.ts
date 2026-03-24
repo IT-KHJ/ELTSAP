@@ -4,7 +4,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 
-export type SyncEntityType = "customer" | "itemlist" | "sales" | "inamt" | "saleetc";
+export type SyncEntityType = "customer" | "itemlist" | "sales" | "inamt" | "saleetc" | "orders";
 
 export interface SyncMetadataRow {
   entity_type: string;
@@ -80,7 +80,7 @@ export async function getAllSyncMetadata(): Promise<SyncMetadataRow[]> {
   return r.error ? [] : r.data;
 }
 
-const ALL_ENTITY_TYPES: SyncEntityType[] = ["customer", "itemlist", "sales", "inamt", "saleetc"];
+const ALL_ENTITY_TYPES: SyncEntityType[] = ["customer", "itemlist", "sales", "inamt", "saleetc", "orders"];
 
 /** 메타데이터 조회 + 오류 (디버깅용). entity_type별 개별 조회로 모든 행 확보 */
 export async function getAllSyncMetadataWithError(): Promise<{ data: SyncMetadataRow[]; error: string | null }> {
@@ -108,6 +108,7 @@ const ENTITY_TO_TABLE: Record<SyncEntityType, string> = {
   sales: "sales",
   inamt: "inamt",
   saleetc: "saleetc",
+  orders: "orders",
 };
 
 /** 각 엔티티 테이블의 누적 행 수 조회 */

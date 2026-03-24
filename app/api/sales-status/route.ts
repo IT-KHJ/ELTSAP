@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSalesStatus } from "@/lib/sales-status-queries";
+import { getSalesStatusFromOrders } from "@/lib/orders-queries";
 
-/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit? */
+/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit? (Supabase orders 기반) */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await getSalesStatus({
+    const result = await getSalesStatusFromOrders({
       startDate: start,
       endDate: end,
       cardcode,

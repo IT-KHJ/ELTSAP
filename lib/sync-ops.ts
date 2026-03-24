@@ -5,7 +5,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 import { BATCH_SIZE } from "./constants";
-import type { CustomerRow, ItemlistRow, SalesRow, InamtRow, SaleetcRow } from "@/types/database";
+import type { CustomerRow, ItemlistRow, SalesRow, InamtRow, SaleetcRow, OrdersRow } from "@/types/database";
 import type { SyncResult } from "@/types/sync";
 
 export async function upsertCustomerBatch(
@@ -130,4 +130,66 @@ export async function upsertSaleetcBatch(
     onProgress?.(Math.min(i + BATCH_SIZE, total), total);
   }
   return { success: true, inserted, updated: 0 };
+}
+
+export async function upsertOrdersBatch(
+  data: OrdersRow[],
+  onProgress?: (done: number, total: number) => void
+): Promise<SyncResult> {
+  const admin = getSupabaseAdmin();
+  let inserted = 0;
+  const total = data.length;
+  for (let i = 0; i < data.length; i += BATCH_SIZE) {
+    const chunk = data.slice(i, i + BATCH_SIZE);
+    const { data: upserted, error } = await admin
+      .from("orders")
+      .upsert(chunk, { onConflict: "docentry,linenum" })
+      .select("docentry");
+    if (error) return { success: false, inserted, updated: 0, error: error.message };
+    inserted += upserted?.length ?? 0;
+    onProgress?.(Math.min(i + BATCH_SIZE, total), total);
+  }
+  return { success: true, inserted, updated: 0 };
+}
+
+const DELETE_DOCENTRY_BATCH = 500;
+
+/** Supabase orders에서 지정 (docentry, linenum) 행 삭제. docentry별 그룹화 후 배치 삭제 */
+export async function deleteOrdersByKeys(
+  keys: Array<{ docentry: number; linenum: number }>
+): Promise<{ deleted: number; error?: string }> {
+  if (keys.length === 0) return { deleted: 0 };
+  const admin = getSupabaseAdmin();
+  const byDoc: Map<number, number[]> = new Map();
+  for (const { docentry, linenum } of keys) {
+    const arr = byDoc.get(docentry) ?? [];
+    arr.push(linenum);
+    byDoc.set(docentry, arr);
+  }
+  let deleted = 0;
+  for (const [docentry, linenums] of Array.from(byDoc.entries())) {
+    const { data, error } = await admin
+      .from("orders")
+      .delete()
+      .eq("docentry", docentry)
+      .in("linenum", linenums)
+      .select("docentry");
+    if (error) return { deleted, error: error.message };
+    deleted += data?.length ?? 0;
+  }
+  return { deleted };
+}
+
+/** Supabase orders에서 지정 docentry들의 모든 행 삭제 */
+export async function deleteOrdersByDocentries(docentries: number[]): Promise<{ deleted: number; error?: string }> {
+  if (docentries.length === 0) return { deleted: 0 };
+  const admin = getSupabaseAdmin();
+  let deleted = 0;
+  for (let i = 0; i < docentries.length; i += DELETE_DOCENTRY_BATCH) {
+    const chunk = docentries.slice(i, i + DELETE_DOCENTRY_BATCH);
+    const { data, error } = await admin.from("orders").delete().in("docentry", chunk).select("docentry");
+    if (error) return { deleted, error: error.message };
+    deleted += data?.length ?? 0;
+  }
+  return { deleted };
 }
