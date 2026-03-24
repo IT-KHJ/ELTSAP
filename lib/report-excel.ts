@@ -28,10 +28,9 @@ function parseMonth(dateStr: string): number {
 }
 
 function getChangeText(current: number, previous: number, invertForNegative = true): string {
-  const { text } = formatChangePercent(current, previous, { invertForNegative });
+  const { text, isIncrease } = formatChangePercent(current, previous, { invertForNegative });
   if (text === "-") return "-";
-  const pct = ((current - previous) / previous) * 100;
-  const arrow = pct > 0 ? "▲" : pct < 0 ? "▼" : "";
+  const arrow = isIncrease === true ? "▲" : isIncrease === false ? "▼" : "";
   return `${arrow}${text}`;
 }
 
