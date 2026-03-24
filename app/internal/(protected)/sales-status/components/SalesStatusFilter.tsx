@@ -149,7 +149,6 @@ export function SalesStatusFilter({
                 />
                 <span className="text-sm">반품</span>
               </label>
-              <span className="text-xs text-gray-500 ml-2">판매 데이터는 매 시간 갱신됩니다.</span>
             </div>
           </div>
         </div>

@@ -58,7 +58,12 @@ export default function SalesStatusPageB() {
 
   return (
     <div className="sales-status-page">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">거래처 현황(판매집계)</h1>
+      <div className="flex flex-wrap items-baseline gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">거래처 현황(판매집계)</h1>
+        <span className="text-sm text-gray-500 font-normal">
+          판매 데이터는 매 시간 갱신됩니다.
+        </span>
+      </div>
 
       <div className="mb-4">
         <SalesStatusFilterB
