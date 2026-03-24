@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDailyAutoSyncResult } from "@/lib/daily-auto-sync";
+import { getDailyAutoSyncResult, getRecentDailyAutoSyncResults } from "@/lib/daily-auto-sync";
 
-/** GET: 오늘 날짜의 자동 동기화 결과 조회. ?date=YYYY-MM-DD 로 특정 날짜 지정 가능 */
+/** GET: ?limit=N 이면 최근 N일 이력 반환. 없으면 ?date=YYYY-MM-DD 로 단일 날짜 (기본 오늘) */
 export async function GET(request: NextRequest) {
   try {
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    if (limitParam != null && limitParam !== "") {
+      const limit = Math.min(Math.max(parseInt(limitParam, 10) || 7, 1), 31);
+      const results = await getRecentDailyAutoSyncResults(limit);
+      return NextResponse.json({ results });
+    }
     const dateStr = request.nextUrl.searchParams.get("date") ?? undefined;
     const targetDate = dateStr ?? new Date().toISOString().slice(0, 10);
     const result = await getDailyAutoSyncResult(targetDate);

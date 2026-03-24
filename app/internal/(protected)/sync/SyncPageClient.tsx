@@ -68,15 +68,19 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
   const [maintenance, setMaintenance] = useState<MaintenanceForm>({ content: "", time_from: "", time_to: "" });
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [dailyAutoResults, setDailyAutoResults] = useState<{
-    customer_count: number;
-    itemlist_count: number;
-    inamt_count: number;
-    saleetc_count: number;
-    sales_count: number;
-    completed_at: string;
-    status: string;
-  } | null>(null);
+  const [dailyAutoHistory, setDailyAutoHistory] = useState<
+    Array<{
+      sync_date: string;
+      customer_count: number;
+      itemlist_count: number;
+      inamt_count: number;
+      saleetc_count: number;
+      sales_count: number;
+      orders_count?: number;
+      completed_at: string;
+      status: string;
+    }>
+  >([]);
 
   function toDatetimeLocal(iso: string | null): string {
     if (!iso) return "";
@@ -104,11 +108,11 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
   }, []);
 
   useEffect(() => {
-    fetch("/api/sync/daily-auto-results")
+    fetch("/api/sync/daily-auto-results?limit=7")
       .then((res) => res.json())
       .then((json) => {
-        if (json && typeof json === "object" && !json.error) {
-          setDailyAutoResults(json);
+        if (json && typeof json === "object" && !json.error && Array.isArray(json.results)) {
+          setDailyAutoHistory(json.results);
         }
       })
       .catch(() => {});
@@ -303,25 +307,89 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
             </div>
           </div>
 
-          {/* 점검 정보 우측: 오늘 자동 동기화 결과 */}
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-md space-y-2">
-            <h3 className="text-sm font-medium text-gray-700">오늘 자동 동기화 (매일 6시)</h3>
-            {dailyAutoResults ? (
-              <div className="space-y-1 text-sm text-gray-600">
-                <div>거래처: {dailyAutoResults.customer_count.toLocaleString()}건</div>
-                <div>품목: {dailyAutoResults.itemlist_count.toLocaleString()}건</div>
-                <div>입금: {dailyAutoResults.inamt_count.toLocaleString()}건</div>
-                <div>기타출고: {dailyAutoResults.saleetc_count.toLocaleString()}건</div>
-                <div>매출: {dailyAutoResults.sales_count.toLocaleString()}건</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {formatSyncDate(dailyAutoResults.completed_at)}
-                  {dailyAutoResults.status !== "success" && (
-                    <span className="text-amber-600 ml-1">({dailyAutoResults.status})</span>
-                  )}
-                </div>
-              </div>
+          {/* 점검 정보 우측: 동기화 처리 이력 */}
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-4xl overflow-x-auto">
+            <h3 className="text-sm font-medium text-gray-700 mb-1">자동 동기화 이력</h3>
+            <p className="text-xs text-gray-500 mb-2">
+              일괄 동기화(매일 오전 7시) · 판매 동기화(매시)
+            </p>
+            {dailyAutoHistory.length > 0 ? (
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">날짜</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">거래처</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">품목</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyAutoHistory.map((row) => {
+                    const completedTime =
+                      row.completed_at &&
+                      (() => {
+                        try {
+                          const d = new Date(row.completed_at);
+                          return Number.isNaN(d.getTime())
+                            ? "-"
+                            : d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+                        } catch {
+                          return "-";
+                        }
+                      })();
+                    const statusLabel =
+                      row.status === "success"
+                        ? "성공"
+                        : row.status === "partial"
+                          ? "부분"
+                          : row.status === "failed"
+                            ? "실패"
+                            : row.status;
+                    return (
+                      <tr key={row.sync_date} className="border-b border-gray-100">
+                        <td className="py-1.5 px-2 text-gray-700">{row.sync_date}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {row.customer_count.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {row.itemlist_count.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {row.inamt_count.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {row.saleetc_count.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {row.sales_count.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                          {(row.orders_count ?? 0).toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-gray-600">{completedTime}</td>
+                        <td
+                          className={`py-1.5 px-2 ${
+                            row.status === "success"
+                              ? "text-green-600"
+                              : row.status === "partial"
+                                ? "text-amber-600"
+                                : "text-red-600"
+                          }`}
+                        >
+                          {statusLabel}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             ) : (
-              <p className="text-sm text-gray-500">오늘 자동 동기화 없음</p>
+              <p className="text-sm text-gray-500">동기화 이력 없음</p>
             )}
           </div>
           </div>

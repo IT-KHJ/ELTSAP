@@ -49,7 +49,7 @@ export function SalesStatusFilterB({
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">판매구분</label>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
@@ -80,6 +80,7 @@ export function SalesStatusFilterB({
                 />
                 <span className="text-sm">반품</span>
               </label>
+              <span className="text-xs text-gray-500 ml-2">판매 데이터는 매 시간 갱신됩니다.</span>
             </div>
           </div>
         </div>

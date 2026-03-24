@@ -79,13 +79,43 @@
 
 ---
 
-## 4. 매일 자동 동기화 (Cron)
+## 4. 로컬 자동 동기화 (localhost)
 
-- **스케줄**: 매일 오전 6시(KST) = UTC 21:00 (`0 21 * * *`)
-- **순서**: 거래처 → 품목 → 입금 → 기타출고 → 매출 (증분)
-- **결과**: 설정 화면 점검 정보 영역 우측에 표시
-- **CRON_SECRET**: Vercel이 Cron 호출 시 `Authorization: Bearer <CRON_SECRET>` 헤더로 전달. 설정 시 해당 값 검증.
-- **마이그레이션**: `supabase/migrations/012_add_daily_auto_sync_results.sql` 적용 필요.
+Vercel에서는 방화벽 등으로 SAP 연결이 어려울 수 있으므로, **localhost에서 실행 중인 앱**을 기준으로 동기화를 스케줄 실행합니다.
+
+### 사전 조건
+
+- `npm run start`로 Next.js 앱이 localhost에서 실행 중
+- `.env.local`에 `CRON_SECRET`, `PORT`(기본 3000) 설정
+- SAP 접속 가능한 네트워크(방화벽 이슈 회피)
+
+### 스크립트
+
+| 스크립트 | 대상 | 실행 |
+|---------|------|------|
+| `npm run sync:orders` | 판매(전체) | 매시간 |
+| `npm run sync:daily` | 거래처·품목·입금·기타출고·매출 | 매일 오전 7시(예시) |
+
+### Windows 작업 스케줄러 예시
+
+1. **작업 스케줄러** 실행 → **기본 작업 만들기**
+2. **매시 정각 (판매 동기화)**  
+   - 프로그램: `cmd.exe`  
+   - 인수: `/c cd /d D:\projects\eltsap && npm run sync:orders`  
+   - 시작 위치: `D:\projects\eltsap`  
+   - 트리거: 매시 0분 반복
+3. **매일 일괄 동기화 (예: 오전 7시)**  
+   - 프로그램: `cmd.exe`  
+   - 인수: `/c cd /d D:\projects\eltsap && npm run sync:daily`  
+   - 시작 위치: `D:\projects\eltsap`  
+   - 트리거: 매일 원하는 시각(예: 오전 7:00)
+
+경로 `D:\projects\eltsap`는 실제 프로젝트 경로로 변경하세요.
+
+### 결과
+
+- 설정 화면 점검 정보 영역 우측에 표시 (일괄·판매 이력)
+- `supabase/migrations/012_add_daily_auto_sync_results.sql`, `017_add_orders_count_to_daily_auto_sync.sql` 적용 필요
 
 ---
 
