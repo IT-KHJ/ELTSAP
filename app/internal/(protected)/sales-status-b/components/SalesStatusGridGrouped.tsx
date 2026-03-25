@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment, useCallback, useRef, useEffect } from "react";
+import { Fragment } from "react";
 import { formatAmount } from "@/lib/format";
 import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/sales-status-grouped-queries";
 
@@ -24,7 +24,8 @@ const DETAIL_COLUMNS: {
   { key: "netSales", label: "순매출", align: "right", minWidth: "6rem" },
 ];
 
-const GROUPED_COL_COUNT = 9;
+/** 액션 + 집계 컬럼 수(상세 행 colspan) */
+const GROUPED_COL_COUNT = 8;
 
 function formatDocdate(v: unknown): string {
   if (v == null || v === "") return "-";
@@ -57,54 +58,19 @@ function formatDetailCellValue(row: SalesStatusDetailRow, key: keyof SalesStatus
 
 interface SalesStatusGridGroupedProps {
   groupedRows: SalesStatusGroupedRow[];
-  startDate: string;
-  endDate: string;
-  salesType: "all" | "sales" | "return";
+  expandedBasecards: ReadonlySet<string>;
+  onToggleExpand: (basecard: string) => void;
+  detailRows: Record<string, SalesStatusDetailRow[]>;
+  detailLoading: Record<string, boolean>;
 }
 
 export function SalesStatusGridGrouped({
   groupedRows,
-  startDate,
-  endDate,
-  salesType,
+  expandedBasecards,
+  onToggleExpand,
+  detailRows,
+  detailLoading,
 }: SalesStatusGridGroupedProps) {
-  const [expandedBasecard, setExpandedBasecard] = useState<string | null>(null);
-  const [detailRows, setDetailRows] = useState<Record<string, SalesStatusDetailRow[]>>({});
-  const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({});
-  const detailRowsRef = useRef<Record<string, SalesStatusDetailRow[]>>({});
-  useEffect(() => {
-    detailRowsRef.current = detailRows;
-  }, [detailRows]);
-
-  const fetchDetail = useCallback(
-    async (basecard: string) => {
-      if (detailRowsRef.current[basecard]) return;
-      setDetailLoading((prev) => ({ ...prev, [basecard]: true }));
-      try {
-        const res = await fetch(
-          `/api/sales-status-detail?start=${startDate}&end=${endDate}&cardcode=${encodeURIComponent(basecard)}&salesType=${salesType}`
-        );
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        setDetailRows((prev) => ({ ...prev, [basecard]: data.rows ?? [] }));
-      } catch {
-        setDetailRows((prev) => ({ ...prev, [basecard]: [] }));
-      } finally {
-        setDetailLoading((prev) => ({ ...prev, [basecard]: false }));
-      }
-    },
-    [startDate, endDate, salesType]
-  );
-
-  const toggleExpand = useCallback(
-    (basecard: string) => {
-      const next = expandedBasecard === basecard ? null : basecard;
-      setExpandedBasecard(next);
-      if (next) fetchDetail(next);
-    },
-    [expandedBasecard, fetchDetail]
-  );
-
   if (groupedRows.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
@@ -170,7 +136,7 @@ export function SalesStatusGridGrouped({
         </thead>
         <tbody>
           {groupedRows.map((g) => {
-            const isExpanded = expandedBasecard === g.basecard;
+            const isExpanded = expandedBasecards.has(g.basecard);
             const rows = detailRows[g.basecard] ?? [];
             const loading = detailLoading[g.basecard];
             return (
@@ -179,7 +145,7 @@ export function SalesStatusGridGrouped({
                   <td className="px-3 py-2 whitespace-nowrap">
                     <button
                       type="button"
-                      onClick={() => toggleExpand(g.basecard)}
+                      onClick={() => onToggleExpand(g.basecard)}
                       className="text-blue-600 hover:text-blue-800 underline text-sm"
                     >
                       {isExpanded ? "간략히보기" : "자세히보기"}

@@ -11,6 +11,8 @@ interface SalesStatusFilterBProps {
   onSalesTypeChange: (v: SalesType) => void;
   onLoad: () => void;
   loading: boolean;
+  onExcelDownload?: () => void;
+  excelDisabled?: boolean;
 }
 
 export function SalesStatusFilterB({
@@ -22,6 +24,8 @@ export function SalesStatusFilterB({
   onSalesTypeChange,
   onLoad,
   loading,
+  onExcelDownload,
+  excelDisabled = true,
 }: SalesStatusFilterBProps) {
   return (
     <div className="filter-panel-no-print bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -92,6 +96,16 @@ export function SalesStatusFilterB({
           >
             {loading ? "조회 중..." : "조회"}
           </button>
+          {onExcelDownload && (
+            <button
+              type="button"
+              onClick={onExcelDownload}
+              disabled={excelDisabled}
+              className="h-10 px-5 border border-gray-300 bg-white text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              엑셀
+            </button>
+          )}
         </div>
       </div>
     </div>
