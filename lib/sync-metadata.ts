@@ -2,7 +2,19 @@
  * 동기화 메타데이터: 엔티티별 마지막 동기화 시각 및 건수
  */
 
+import { DATE_MIN_SYNC } from "./constants";
 import { getSupabaseAdmin } from "./supabase";
+
+/** last_synced_at UTC 날짜에서 뺀 뒤 SAP 증분 since로 쓰는 일수(겹침 윈도우) */
+export const INCREMENTAL_LOOKBACK_DAYS = 3;
+
+/** `last_synced_at`에서 뽑은 기준일(YYYY-MM-DD)에서 달력 기준 N일 전, 하한 DATE_MIN_SYNC */
+export function applyIncrementalLookbackToSinceDate(baseYmd: string): string {
+  const d = new Date(`${baseYmd}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - INCREMENTAL_LOOKBACK_DAYS);
+  const ymd = d.toISOString().slice(0, 10);
+  return ymd < DATE_MIN_SYNC ? DATE_MIN_SYNC : ymd;
+}
 
 export type SyncEntityType = "customer" | "itemlist" | "sales" | "inamt" | "saleetc" | "orders";
 
@@ -26,7 +38,16 @@ export function normalizeTimestampForParse(raw: string): string {
   return s;
 }
 
-/** 마지막 동기화 시각 조회 (증분 동기화용). 없으면 null. YYYY-MM-DD(날짜만) 반환. SAP CreateDate/UpdateDate와 동일하게 날짜 단위 비교 */
+/** `last_synced_at` 원문 → 증분 쿼리용 since(룩백 적용). 파싱 실패 시 null */
+export function lastSyncedAtRawToIncrementalSince(raw: string): string | null {
+  const normalized = normalizeTimestampForParse(raw);
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return null;
+  const baseSince = d.toISOString().slice(0, 10);
+  return applyIncrementalLookbackToSinceDate(baseSince);
+}
+
+/** 마지막 동기화 시각 조회 (증분 동기화용). 없으면 null. YYYY-MM-DD(날짜만) 반환. 룩백 적용 후 값 */
 export async function getLastSyncTime(entityType: SyncEntityType): Promise<string | null> {
   const r = await getLastSyncTimeDebug(entityType);
   return r && "since" in r ? r.since : null;
@@ -49,7 +70,7 @@ export async function getLastSyncTimeDebug(
     const normalized = normalizeTimestampForParse(raw);
     const d = new Date(normalized);
     if (Number.isNaN(d.getTime())) return { error: `날짜 파싱 실패: ${raw}` };
-    return { raw, since: d.toISOString().slice(0, 10) };
+    return { raw, since: applyIncrementalLookbackToSinceDate(d.toISOString().slice(0, 10)) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }

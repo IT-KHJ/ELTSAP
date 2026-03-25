@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSaleetcBatch } from "@/lib/sync-ops";
-import { getAllSyncMetadataWithError, getTableCount, normalizeTimestampForParse, saveSyncMetadata } from "@/lib/sync-metadata";
+import { getAllSyncMetadataWithError, getTableCount, lastSyncedAtRawToIncrementalSince, saveSyncMetadata } from "@/lib/sync-metadata";
 import { isSapSqlServerConfigured, querySapSaleetc, querySapSaleetcDateRange } from "@/lib/sap-sqlserver";
 import { mapSapRowToSaleetc } from "@/lib/sap-mappers";
 
@@ -15,14 +15,8 @@ export async function GET(request: NextRequest) {
       let since: string | null = null;
       let parseError: string | null = null;
       if (!fullSync && raw) {
-        try {
-          const normalized = normalizeTimestampForParse(raw);
-          const d = new Date(normalized);
-          if (!Number.isNaN(d.getTime())) since = d.toISOString().slice(0, 10);
-          else parseError = `날짜 파싱 실패: ${raw}`;
-        } catch (e) {
-          parseError = e instanceof Error ? e.message : String(e);
-        }
+        since = lastSyncedAtRawToIncrementalSince(raw);
+        if (since === null) parseError = `날짜 파싱 실패: ${raw}`;
       }
       const [rows, sapDateRange] = await Promise.all([
         querySapSaleetc(since),

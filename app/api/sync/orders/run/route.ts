@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteOrdersByDocentries, deleteOrdersByKeys, upsertOrdersBatch } from "@/lib/sync-ops";
-import { getAllSyncMetadataWithError, getTableCount, normalizeTimestampForParse, saveSyncMetadata } from "@/lib/sync-metadata";
+import { getAllSyncMetadataWithError, getTableCount, lastSyncedAtRawToIncrementalSince, saveSyncMetadata } from "@/lib/sync-metadata";
 import {
   isSapSqlServerConfigured,
   querySapOrders,
@@ -30,13 +30,7 @@ export async function GET(request: NextRequest) {
     const raw = ordersMeta?.last_synced_at ?? null;
     let since: string | null = null;
     if (!fullSync && raw) {
-      try {
-        const normalized = normalizeTimestampForParse(raw);
-        const d = new Date(normalized);
-        if (!Number.isNaN(d.getTime())) since = d.toISOString().slice(0, 10);
-      } catch {
-        // 파싱 실패 시 전체 동기화로 진행
-      }
+      since = lastSyncedAtRawToIncrementalSince(raw);
     }
 
     let deletedCount = 0;
