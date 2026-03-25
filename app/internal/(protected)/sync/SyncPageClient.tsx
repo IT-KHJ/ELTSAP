@@ -68,7 +68,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
   const [maintenance, setMaintenance] = useState<MaintenanceForm>({ content: "", time_from: "", time_to: "" });
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [dailyAutoHistory, setDailyAutoHistory] = useState<
+  const [dailyBatchHistory, setDailyBatchHistory] = useState<
     Array<{
       sync_date: string;
       customer_count: number;
@@ -76,8 +76,19 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
       inamt_count: number;
       saleetc_count: number;
       sales_count: number;
-      orders_count?: number;
+      orders_count: number;
+      completed_at: string | null;
+      status: string;
+    }>
+  >([]);
+  const [hourlyHistory, setHourlyHistory] = useState<
+    Array<{
+      id: string;
       completed_at: string;
+      inamt_count: number;
+      saleetc_count: number;
+      sales_count: number;
+      orders_count: number;
       status: string;
     }>
   >([]);
@@ -108,11 +119,17 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
   }, []);
 
   useEffect(() => {
-    fetch("/api/sync/daily-auto-results?limit=7")
+    fetch("/api/sync/daily-auto-results?limit=5")
       .then((res) => res.json())
       .then((json) => {
-        if (json && typeof json === "object" && !json.error && Array.isArray(json.results)) {
-          setDailyAutoHistory(json.results);
+        if (json && typeof json === "object" && !json.error) {
+          if (Array.isArray(json.daily) && Array.isArray(json.hourly)) {
+            setDailyBatchHistory(json.daily);
+            setHourlyHistory(json.hourly);
+          } else if (Array.isArray(json.results)) {
+            setDailyBatchHistory(json.results);
+            setHourlyHistory([]);
+          }
         }
       })
       .catch(() => {});
@@ -252,14 +269,155 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
           </div>
         </section>
 
-        {/* 동기화 하단: 점검 정보 + 자동 동기화 결과 */}
-        <section className="mt-8">
+        {/* 자동 동기화 이력: 좌우 전체 너비 */}
+        <section className="mt-10 w-full">
+          <h2 className="text-base font-semibold text-gray-800 mb-1">자동 동기화 이력</h2>
+          <p className="text-sm text-gray-500 mb-4">매일 오전 9시 일괄(좌) · 매 시간 증분(우)</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto min-w-0">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">매일 오전 9시 (일괄)</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  거래처 → 품목 → 입금 → 기타출고 → 매출 → 판매 (전 단계 전체)
+                </p>
+                {dailyBatchHistory.length > 0 ? (
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">거래처</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">품목</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyBatchHistory.map((row) => {
+                        const statusLabel =
+                          row.status === "success"
+                            ? "성공"
+                            : row.status === "partial"
+                              ? "부분"
+                              : row.status === "failed"
+                                ? "실패"
+                                : row.status;
+                        return (
+                          <tr key={row.sync_date} className="border-b border-gray-100">
+                            <td className="py-1.5 px-2 text-gray-700 whitespace-nowrap text-xs">
+                              {row.completed_at ? formatSyncDate(row.completed_at) : "-"}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.customer_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.itemlist_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.inamt_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.saleetc_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.sales_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {(row.orders_count ?? 0).toLocaleString()}
+                            </td>
+                            <td
+                              className={`py-1.5 px-2 ${
+                                row.status === "success"
+                                  ? "text-green-600"
+                                  : row.status === "partial"
+                                    ? "text-amber-600"
+                                    : "text-red-600"
+                              }`}
+                            >
+                              {statusLabel}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-gray-500">이력 없음</p>
+                )}
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto min-w-0">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">매 시간 (증분)</h3>
+                <p className="text-xs text-gray-500 mb-3">입금 → 기타출고 → 매출 → 판매</p>
+                {hourlyHistory.length > 0 ? (
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {hourlyHistory.map((row) => {
+                        const statusLabel =
+                          row.status === "success"
+                            ? "성공"
+                            : row.status === "partial"
+                              ? "부분"
+                              : row.status === "failed"
+                                ? "실패"
+                                : row.status;
+                        return (
+                          <tr key={row.id} className="border-b border-gray-100">
+                            <td className="py-1.5 px-2 text-gray-700 whitespace-nowrap text-xs">
+                              {formatSyncDate(row.completed_at)}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.inamt_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.saleetc_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.sales_count.toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                              {row.orders_count.toLocaleString()}
+                            </td>
+                            <td
+                              className={`py-1.5 px-2 ${
+                                row.status === "success"
+                                  ? "text-green-600"
+                                  : row.status === "partial"
+                                    ? "text-amber-600"
+                                    : "text-red-600"
+                              }`}
+                            >
+                              {statusLabel}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-gray-500">이력 없음</p>
+                )}
+              </div>
+          </div>
+        </section>
+
+        {/* 점검 정보: 페이지 하단 */}
+        <section className="mt-10 pt-8 border-t border-gray-200">
           <h2 className="text-base font-semibold text-gray-800 mb-2">점검 정보</h2>
           <p className="text-gray-600 mb-4">
             점검중 페이지에 표시할 내용과 기간을 입력하세요. 비워두면 점검 페이지에서 표시되지 않습니다.
           </p>
-          <div className="flex flex-col lg:flex-row gap-6">
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3 flex-1">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">점검 내용</label>
               <textarea
@@ -270,8 +428,8 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
-            <div className="flex flex-col gap-3">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs font-medium text-gray-600 mb-1">점검 시작일시</label>
                 <input
                   type="datetime-local"
@@ -280,7 +438,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs font-medium text-gray-600 mb-1">점검 종료일시</label>
                 <input
                   type="datetime-local"
@@ -305,93 +463,6 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                 </span>
               )}
             </div>
-          </div>
-
-          {/* 점검 정보 우측: 동기화 처리 이력 */}
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-4xl overflow-x-auto">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">자동 동기화 이력</h3>
-            <p className="text-xs text-gray-500 mb-2">
-              일괄 동기화(매일 오전 7시) · 판매 동기화(매시)
-            </p>
-            {dailyAutoHistory.length > 0 ? (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">날짜</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">거래처</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">품목</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dailyAutoHistory.map((row) => {
-                    const completedTime =
-                      row.completed_at &&
-                      (() => {
-                        try {
-                          const d = new Date(row.completed_at);
-                          return Number.isNaN(d.getTime())
-                            ? "-"
-                            : d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-                        } catch {
-                          return "-";
-                        }
-                      })();
-                    const statusLabel =
-                      row.status === "success"
-                        ? "성공"
-                        : row.status === "partial"
-                          ? "부분"
-                          : row.status === "failed"
-                            ? "실패"
-                            : row.status;
-                    return (
-                      <tr key={row.sync_date} className="border-b border-gray-100">
-                        <td className="py-1.5 px-2 text-gray-700">{row.sync_date}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {row.customer_count.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {row.itemlist_count.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {row.inamt_count.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {row.saleetc_count.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {row.sales_count.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                          {(row.orders_count ?? 0).toLocaleString()}
-                        </td>
-                        <td className="py-1.5 px-2 text-gray-600">{completedTime}</td>
-                        <td
-                          className={`py-1.5 px-2 ${
-                            row.status === "success"
-                              ? "text-green-600"
-                              : row.status === "partial"
-                                ? "text-amber-600"
-                                : "text-red-600"
-                          }`}
-                        >
-                          {statusLabel}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-gray-500">동기화 이력 없음</p>
-            )}
-          </div>
           </div>
         </section>
     </div>

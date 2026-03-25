@@ -1,5 +1,5 @@
 /**
- * 판매(전체) 동기화 스크립트
+ * 매시간 증분 동기화: 입금 → 기타출고 → 매출 → 판매 (/api/cron/orders-sync)
  * 실행: npm run sync:orders 또는 tsx scripts/run-orders-sync.ts
  * (.env.local에 CRON_SECRET, PORT 필요. Next.js 앱이 localhost에서 실행 중이어야 함)
  */
@@ -22,7 +22,7 @@ async function main() {
     console.error("동기화 실패:", data?.error ?? res.statusText);
     process.exit(1);
   }
-  console.log("판매(전체) 동기화 완료:", data);
+  console.log("매시간 증분 동기화 완료:", data);
 }
 
 main().catch((e) => {

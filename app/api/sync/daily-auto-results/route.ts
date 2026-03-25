@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDailyAutoSyncResult, getRecentDailyAutoSyncResults } from "@/lib/daily-auto-sync";
+import {
+  getDailyAutoSyncResult,
+  getRecentDailyBatchHistory,
+  getRecentHourlySyncResults,
+  getTodayDateString,
+} from "@/lib/daily-auto-sync";
 
-/** GET: ?limit=N 이면 최근 N일 이력 반환. 없으면 ?date=YYYY-MM-DD 로 단일 날짜 (기본 오늘) */
+/** GET: ?limit=N → daily(매일 일괄) + hourly(매시) 이력. ?date=YYYY-MM-DD → 단일 날짜 daily 행 */
 export async function GET(request: NextRequest) {
   try {
     const limitParam = request.nextUrl.searchParams.get("limit");
     if (limitParam != null && limitParam !== "") {
-      const limit = Math.min(Math.max(parseInt(limitParam, 10) || 7, 1), 31);
-      const results = await getRecentDailyAutoSyncResults(limit);
-      return NextResponse.json({ results });
+      const limit = Math.min(Math.max(parseInt(limitParam, 10) || 5, 1), 31);
+      const [daily, hourly] = await Promise.all([
+        getRecentDailyBatchHistory(limit),
+        getRecentHourlySyncResults(limit),
+      ]);
+      return NextResponse.json({ daily, hourly });
     }
     const dateStr = request.nextUrl.searchParams.get("date") ?? undefined;
-    const targetDate = dateStr ?? new Date().toISOString().slice(0, 10);
+    const targetDate = dateStr ?? getTodayDateString();
     const result = await getDailyAutoSyncResult(targetDate);
     return NextResponse.json(result);
   } catch (e) {

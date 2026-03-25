@@ -1,5 +1,5 @@
 /**
- * 거래처·품목·입금·기타출고·매출 일괄 동기화 스크립트
+ * 거래처·품목·입금·기타출고·매출·판매 전 단계 전체 일괄 동기화 스크립트
  * 실행: npm run sync:daily 또는 tsx scripts/run-daily-sync.ts
  * (.env.local에 CRON_SECRET, PORT 필요. Next.js 앱이 localhost에서 실행 중이어야 함)
  */

@@ -8,18 +8,9 @@ import {
 } from "@/lib/sap-sqlserver";
 import { mapSapRowToOrders } from "@/lib/sap-mappers";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { mergeOrdersDailySyncResult } from "@/lib/daily-auto-sync";
 
 function key(docentry: number, linenum: number): string {
   return `${docentry}:${linenum}`;
-}
-
-async function recordOrdersDailyHistory(inserted: number, updated: number): Promise<void> {
-  try {
-    await mergeOrdersDailySyncResult(inserted, updated);
-  } catch (e) {
-    console.error("[orders/run] daily_auto_sync orders_count 기록 실패:", e);
-  }
 }
 
 /** GET: SAP DLN1+ODLN 직접 조회 후 Supabase orders UPSERT. 증분 동기화 지원. ?full=1 시 전체 동기화. SAP 삭제 반영. */
@@ -84,7 +75,6 @@ export async function GET(request: NextRequest) {
       if (mapped.length === 0) {
         await saveSyncMetadata("orders", { inserted: 0, updated: 0 });
         const totalCount = await getTableCount("orders");
-        await recordOrdersDailyHistory(0, 0);
         return NextResponse.json({ success: true, inserted: 0, updated: 0, deletedCount, totalCount });
       }
 
@@ -93,9 +83,6 @@ export async function GET(request: NextRequest) {
         await saveSyncMetadata("orders", { inserted: result.inserted, updated: result.updated });
       }
       const totalCount = await getTableCount("orders");
-      if (result.success) {
-        await recordOrdersDailyHistory(result.inserted, result.updated);
-      }
       return NextResponse.json({ ...result, deletedCount, totalCount });
     }
 
@@ -117,7 +104,6 @@ export async function GET(request: NextRequest) {
     if (mapped.length === 0) {
       await saveSyncMetadata("orders", { inserted: 0, updated: 0 });
       const totalCount = await getTableCount("orders");
-      await recordOrdersDailyHistory(0, 0);
       return NextResponse.json({ success: true, inserted: 0, updated: 0, deletedCount, totalCount });
     }
 
@@ -126,9 +112,6 @@ export async function GET(request: NextRequest) {
       await saveSyncMetadata("orders", { inserted: result.inserted, updated: result.updated });
     }
     const totalCount = await getTableCount("orders");
-    if (result.success) {
-      await recordOrdersDailyHistory(result.inserted, result.updated);
-    }
     return NextResponse.json({ ...result, deletedCount, totalCount });
   } catch (e) {
     const message = e instanceof Error ? e.message : "동기화 중 오류가 발생했습니다.";

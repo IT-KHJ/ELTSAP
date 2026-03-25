@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveDailyAutoSyncResult } from "@/lib/daily-auto-sync";
 
-/** 순서: 거래처 → 품목 → 입금 → 기타출고 → 매출 (증분) */
+/** 순서: 거래처 → 품목 → 입금 → 기타출고 → 매출 → 판매. 일괄은 모든 단계에 ?full=1(전체 동기화). */
 const AUTO_SYNC_ORDER = [
   { path: "/api/sync/customer/run", key: "customer" as const },
   { path: "/api/sync/itemlist/run", key: "itemlist" as const },
   { path: "/api/sync/inamt/run", key: "inamt" as const },
   { path: "/api/sync/saleetc/run", key: "saleetc" as const },
   { path: "/api/sync/sales/run", key: "sales" as const },
+  { path: "/api/sync/orders/run", key: "orders" as const },
 ] as const;
 
 function getBaseUrl(): string {
@@ -18,7 +19,7 @@ function getBaseUrl(): string {
     : `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
-/** GET: Vercel Cron에서 매일 6시(KST) 호출. CRON_SECRET 검증 후 순차 증분 동기화 실행 */
+/** GET: 스케줄러에서 매일 오전 9시(KST) 등 원하는 시각에 호출. CRON_SECRET 검증 후 순차 동기화 실행 */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
@@ -27,24 +28,26 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = getBaseUrl();
-  const counts = { customer: 0, itemlist: 0, inamt: 0, saleetc: 0, sales: 0 };
+  const counts = { customer: 0, itemlist: 0, inamt: 0, saleetc: 0, sales: 0, orders: 0 };
   let status: "success" | "partial" | "failed" = "success";
 
-  for (const { path, key } of AUTO_SYNC_ORDER) {
+  for (const step of AUTO_SYNC_ORDER) {
     try {
-      const res = await fetch(`${baseUrl}${path}`, { cache: "no-store" });
+      const path = step.path;
+      const qs = "?full=1";
+      const res = await fetch(`${baseUrl}${path}${qs}`, { cache: "no-store" });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         inserted?: number;
         updated?: number;
       };
       const ok = res.ok && data?.success;
-      counts[key] = (data?.inserted ?? 0) + (data?.updated ?? 0);
+      counts[step.key] = (data?.inserted ?? 0) + (data?.updated ?? 0);
       if (!ok) {
         status = "partial";
         break;
       }
-    } catch (e) {
+    } catch {
       status = "failed";
       break;
     }

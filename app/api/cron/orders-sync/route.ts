@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { insertHourlySyncResult } from "@/lib/daily-auto-sync";
 
 function getBaseUrl(): string {
   const url = process.env.VERCEL_URL;
@@ -8,7 +9,17 @@ function getBaseUrl(): string {
     : `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
-/** GET: CRON_SECRET 검증 후 /api/sync/orders/run 호출 (판매 전체 동기화) */
+/** 입금 → 기타출고 → 매출 → 판매 (증분). 완료 후 hourly_sync_results 기록 */
+const HOURLY_SYNC_STEPS = [
+  { path: "/api/sync/inamt/run", key: "inamt" as const },
+  { path: "/api/sync/saleetc/run", key: "saleetc" as const },
+  { path: "/api/sync/sales/run", key: "sales" as const },
+  { path: "/api/sync/orders/run", key: "orders" as const },
+] as const;
+
+type StepKey = (typeof HOURLY_SYNC_STEPS)[number]["key"];
+
+/** GET: CRON_SECRET 검증 후 증분 동기화 순차 실행 */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
@@ -17,18 +28,58 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = getBaseUrl();
-  try {
-    const res = await fetch(`${baseUrl}/api/sync/orders/run`, { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return NextResponse.json(
-        { success: false, error: (data as { error?: string })?.error ?? "동기화 실패" },
-        { status: res.status }
-      );
+  const counts: Record<StepKey, number> = {
+    inamt: 0,
+    saleetc: 0,
+    sales: 0,
+    orders: 0,
+  };
+  let status: "success" | "partial" | "failed" = "success";
+
+  for (const { path, key } of HOURLY_SYNC_STEPS) {
+    try {
+      const res = await fetch(`${baseUrl}${path}`, { cache: "no-store" });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        inserted?: number;
+        updated?: number;
+        error?: string;
+      };
+      const ok = res.ok && data?.success;
+      counts[key] = (data?.inserted ?? 0) + (data?.updated ?? 0);
+      if (!ok) {
+        status = res.ok ? "partial" : "failed";
+        break;
+      }
+    } catch {
+      status = "failed";
+      break;
     }
-    return NextResponse.json(data);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "동기화 중 오류";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
+
+  try {
+    await insertHourlySyncResult({
+      status,
+      inamt_count: counts.inamt,
+      saleetc_count: counts.saleetc,
+      sales_count: counts.sales,
+      orders_count: counts.orders,
+    });
+  } catch (e) {
+    console.error("[orders-sync] hourly_sync_results 기록 실패:", e);
+  }
+
+  if (status !== "success") {
+    return NextResponse.json(
+      {
+        success: false,
+        status,
+        counts,
+        error: status === "failed" ? "동기화 중 오류" : "일부 단계 실패",
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true, status, counts });
 }
