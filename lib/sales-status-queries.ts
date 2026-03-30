@@ -87,6 +87,7 @@ async function fetchSupabaseSales(
       const { data: customers } = await admin
         .from("customer")
         .select("cardcode, cardname, aliasname")
+        .eq("useyn", "Y")
         .in("cardcode", Array.from(basecards));
       (customers ?? []).forEach((c: { cardcode: string; cardname: string | null; aliasname: string | null }) => {
         customerMap.set(c.cardcode, { cardname: c.cardname ?? null, aliasname: c.aliasname ?? null });

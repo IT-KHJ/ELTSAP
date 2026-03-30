@@ -199,6 +199,7 @@ export async function getSalesStatusDetail(
     const { data: customers } = await admin
       .from("customer")
       .select("cardcode, cardname")
+      .eq("useyn", "Y")
       .in("cardcode", Array.from(basecards));
     (customers ?? []).forEach((c: { cardcode: string; cardname: string | null }) => {
       customerMap.set(c.cardcode, { cardname: c.cardname ?? null });

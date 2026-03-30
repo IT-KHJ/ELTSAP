@@ -186,7 +186,7 @@ export async function getCustomerRanking(
   const nameMap: Record<string, { cardname: string | null; aliasname: string | null }> = {};
   for (let i = 0; i < cardcodes.length; i += 500) {
     const chunk = cardcodes.slice(i, i + 500);
-    const { data } = await admin.from("customer").select("cardcode, cardname, aliasname").in("cardcode", chunk);
+    const { data } = await admin.from("customer").select("cardcode, cardname, aliasname").eq("useyn", "Y").in("cardcode", chunk);
     (data ?? []).forEach((r: { cardcode: string; cardname: string | null; aliasname: string | null }) => {
       nameMap[r.cardcode] = { cardname: r.cardname, aliasname: r.aliasname };
     });
@@ -360,7 +360,7 @@ export async function getCustomerDetail(
     .sort((a, b) => a.returns - b.returns)
     .slice(0, 30);
 
-  const { data: cust } = await admin.from("customer").select("cardname").eq("cardcode", cardcode).maybeSingle();
+  const { data: cust } = await admin.from("customer").select("cardname").eq("useyn", "Y").eq("cardcode", cardcode).maybeSingle();
   const cardname = (cust as { cardname?: string } | null)?.cardname ?? null;
 
   return { monthly, itemSales, itemReturns, cardname };
@@ -379,7 +379,7 @@ export async function getParetoData(
   if (cardcodes.length > 0) {
     for (let i = 0; i < cardcodes.length; i += 500) {
       const chunk = cardcodes.slice(i, i + 500);
-      const { data } = await admin.from("customer").select("cardcode, aliasname").in("cardcode", chunk);
+      const { data } = await admin.from("customer").select("cardcode, aliasname").eq("useyn", "Y").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });
@@ -430,7 +430,7 @@ export async function getDashboardInsights(
     const arr = Array.from(allCards);
     for (let i = 0; i < arr.length; i += 500) {
       const chunk = arr.slice(i, i + 500);
-      const { data } = await admin.from("customer").select("cardcode, aliasname").in("cardcode", chunk);
+      const { data } = await admin.from("customer").select("cardcode, aliasname").eq("useyn", "Y").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });

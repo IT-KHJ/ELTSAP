@@ -12,6 +12,7 @@ import { LogoutButton } from './components/LogoutButton';
 import { ModalProvider } from '@/lib/components/ModalProvider';
 
 const NAV_ITEMS = [
+  { label: '거래처 관리', href: '/internal/customers', icon: '🏢' },
   { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄' },
   { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋' },
   { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋' },

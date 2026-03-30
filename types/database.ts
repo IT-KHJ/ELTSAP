@@ -20,6 +20,7 @@ export interface CustomerRow {
   aliasname: string | null;
   billtodef: string | null;
   u_delyn: string | null;
+  useyn: string | null;
 }
 
 export interface ItemlistRow {
