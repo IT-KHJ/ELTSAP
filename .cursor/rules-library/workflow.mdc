@@ -1,0 +1,464 @@
+---
+description: Rules for task execution flow, planning, scoping, implementation sequence, and completion discipline
+alwaysApply: false
+---
+
+# Workflow Rules
+
+Apply these rules to how work is carried out from start to finish.
+
+These rules govern:
+- how to interpret a task,
+- when to plan,
+- when to ask,
+- how to scope changes,
+- how to sequence implementation,
+- how to verify completion,
+- and how to report the result accurately.
+
+The goal is not process for its own sake.
+The goal is to prevent rushed, assumption-driven, or overly broad implementation.
+
+---
+
+## 1. Follow the default execution sequence
+
+Unless the task is truly trivial, follow this sequence:
+
+1. understand the request
+2. identify constraints and ambiguity
+3. define the smallest successful outcome
+4. make a brief plan if the task has multiple steps
+5. implement in the narrowest scope possible
+6. verify with concrete evidence
+7. report what changed and how it was verified
+
+Do not jump directly from reading the request to writing code when the requirement is not fully clear.
+
+### Rule
+Understanding and verification are part of execution, not overhead around execution.
+
+---
+
+## 2. Start by identifying the real task
+
+Before changing code, determine:
+
+- what the user explicitly asked for,
+- what outcome would count as success,
+- what constraints are already implied by the existing code,
+- whether the task is local or structural,
+- whether behavior is changing or only implementation is changing,
+- whether the request is a bug fix, feature addition, refactor, cleanup, or investigation.
+
+Do not respond to the broadest possible interpretation of a request.
+Respond to the most justified interpretation supported by the prompt and the code.
+
+### Rule
+Do the task that was asked, not the larger task it loosely resembles.
+
+---
+
+## 3. Define success before implementing
+
+Translate the request into a concrete success condition before coding.
+
+Examples:
+- "fix the bug" becomes "reproduce the failure, apply a fix, and verify the failure is gone"
+- "add validation" becomes "reject the specified invalid input and verify valid input still works"
+- "refactor this" becomes "preserve behavior while improving the requested structure, then verify equivalence"
+- "clean this up" becomes "make the explicitly requested cleanup without changing behavior"
+
+A task is underspecified if success cannot be described concretely.
+
+### Rule
+If success cannot be stated clearly, implementation is premature.
+
+---
+
+## 4. Use planning only when it adds value
+
+Do not generate a formal plan for every trivial task.
+Do create a short plan when:
+- the task has multiple dependent steps,
+- several files or layers are involved,
+- verification requires staged work,
+- a bug needs reproduction before fixing,
+- a structural change is being considered,
+- or there are meaningful decision points.
+
+A good plan is short and operational.
+
+Preferred format:
+1. [step] → verify: [check]
+2. [step] → verify: [check]
+3. [step] → verify: [check]
+
+Avoid:
+- vague planning,
+- decorative planning,
+- plans with no verification hooks,
+- over-detailed plans for simple edits.
+
+### Rule
+Plan enough to avoid mistakes, not enough to simulate project management.
+
+---
+
+## 5. Distinguish trivial, local, and structural work
+
+Before acting, classify the task roughly.
+
+### Trivial work
+Examples:
+- small local rename with no behavior change
+- tiny formatting or typo fix
+- a one-line logic correction with obvious verification
+
+Expectation:
+- minimal planning
+- fast local edit
+- direct verification
+
+### Local behavior work
+Examples:
+- bug fix in one module
+- small feature addition
+- validation change
+- function-level logic change
+
+Expectation:
+- brief success criteria
+- narrow plan if helpful
+- focused verification
+- minimal blast radius
+
+### Structural work
+Examples:
+- new shared abstraction
+- interface or contract change
+- cross-module flow change
+- persistence or state ownership change
+
+Expectation:
+- explicit assumptions
+- clearer planning
+- justification for structure changes
+- stronger verification discipline
+
+### Rule
+Use only as much process as the task size and risk actually require.
+
+---
+
+## 6. Ask only when ambiguity is material
+
+Do not ask questions merely to avoid thinking.
+Do ask when ambiguity would materially change:
+- behavior,
+- API shape,
+- architecture,
+- data contract,
+- side effects,
+- persistence behavior,
+- or verification strategy.
+
+When ambiguity is low-risk and bounded, it is acceptable to proceed with a clearly stated minimal assumption.
+
+Examples of acceptable proceeding:
+- surrounding code makes the expected behavior strongly implied
+- the task is local and the assumption affects only a small area
+- the result can be verified directly
+
+Examples of when to stop:
+- two plausible interpretations require meaningfully different logic
+- a public contract would change depending on the answer
+- scope could expand from local fix to structural redesign
+
+### Rule
+Do not interrupt for minor uncertainty. Do not guess through major uncertainty.
+
+---
+
+## 7. Scope aggressively and protect the diff
+
+Once the task is understood, constrain the work tightly.
+
+Prefer:
+- one concept per change,
+- local edits before abstraction,
+- preserving nearby code shape,
+- editing only the files truly needed,
+- separating behavior change from optional cleanup.
+
+Do not:
+- mix unrelated cleanup into implementation,
+- use the task as an excuse to refactor adjacent code,
+- expand a local fix into architecture work without necessity,
+- reshape code so much that review becomes harder.
+
+### Rule
+The workflow should narrow the change over time, not widen it.
+
+---
+
+## 8. Use an evidence-driven loop for bug fixing
+
+For bug work, prefer the following loop:
+
+1. identify the reported failure precisely
+2. inspect the relevant code path
+3. reproduce the bug with a test or clear manual case when practical
+4. isolate the smallest plausible fix
+5. implement the fix
+6. verify the failing case now passes
+7. verify nearby expected behavior still holds
+
+Do not skip directly from "I see the likely cause" to "done" without proof.
+
+### Rule
+The more confident the intuition, the more valuable the reproduction step becomes.
+
+---
+
+## 9. Use an evidence-driven loop for feature work
+
+For feature or behavior additions, prefer the following loop:
+
+1. define the requested behavior
+2. identify where the behavior should live
+3. decide the smallest implementation that fits existing structure
+4. implement only the requested scope
+5. verify the new behavior directly
+6. verify compatible existing behavior still works
+
+Avoid:
+- implementing future options not requested,
+- creating extension points without current need,
+- broadening the feature into a platform.
+
+### Rule
+A feature request is complete when the requested behavior exists and the surrounding contract still makes sense.
+
+---
+
+## 10. Use a preservation loop for refactors
+
+For refactor tasks, treat behavior preservation as the primary constraint.
+
+Preferred loop:
+1. identify what is changing structurally
+2. identify what must stay behaviorally identical
+3. capture current behavior through tests or other checks when practical
+4. refactor in controlled steps
+5. verify behavior remains unchanged
+6. ensure the resulting structure is actually simpler or clearer
+
+Do not call something a refactor if it also changes behavior without making that explicit.
+
+### Rule
+Refactor means structural change under behavior preservation, unless explicitly stated otherwise.
+
+---
+
+## 11. Do one coherent thing at a time
+
+Within a single task, avoid mixing multiple categories of work unless strictly necessary.
+
+Avoid combining:
+- behavior change and broad rename,
+- bug fix and opportunistic refactor,
+- feature addition and test suite reorganization,
+- interface change and unrelated style cleanup.
+
+If multiple changes are necessary, sequence them so the relationship is clear.
+
+### Rule
+A clean workflow produces changes that are easy to explain in a simple order.
+
+---
+
+## 12. Keep verification close to the change
+
+After implementing, verify promptly and specifically.
+
+Do not:
+- postpone all checking until after many unrelated edits,
+- rely on memory of what was changed,
+- declare success before the relevant checks run.
+
+Prefer:
+- targeted tests soon after the change,
+- focused manual verification while context is fresh,
+- narrow validation of the exact behavior affected.
+
+### Rule
+Verification loses value when it is delayed and diffused across too much change.
+
+---
+
+## 13. Use iteration, but keep each loop grounded
+
+If the first implementation is incomplete or incorrect:
+
+- inspect the actual failure,
+- adjust the smallest necessary part,
+- rerun the relevant verification,
+- avoid piling on speculative changes.
+
+Do not respond to failed verification by broadening the edit without evidence.
+
+### Good iteration
+- test fails on a specific edge case
+- adjust validation or branching locally
+- rerun the same test and nearby checks
+
+### Bad iteration
+- test fails
+- rewrite the module because the first fix felt messy
+- add new abstraction without showing why it fixes the failure
+
+### Rule
+Each loop should be triggered by evidence, not frustration.
+
+---
+
+## 14. Keep completion criteria strict
+
+Do not treat a task as complete because:
+- the code compiles in theory,
+- the change looks elegant,
+- the implementation matches your expectation,
+- no obvious issue stands out on inspection.
+
+Treat a task as complete only when:
+- the requested outcome is present,
+- the relevant verification passed or was concretely performed,
+- the diff is appropriately scoped,
+- assumptions and limits are explicitly stated where relevant.
+
+### Rule
+Completion is a verified state, not a feeling of being done.
+
+---
+
+## 15. Report the result accurately and narrowly
+
+When summarizing completed work, report:
+
+- what changed,
+- where the change was made,
+- what behavior was affected,
+- how it was verified,
+- any assumptions taken,
+- any limits on confidence or unverified areas.
+
+Do not:
+- overstate coverage,
+- imply broad refactoring if the task was local,
+- describe guessed behavior as confirmed behavior,
+- claim checks that were not actually run.
+
+Good reporting is:
+- specific,
+- bounded,
+- verifiable,
+- honest about limits.
+
+### Rule
+The completion report should allow another engineer to understand exactly what was done and what confidence level is justified.
+
+---
+
+## 16. Preserve momentum without sacrificing correctness
+
+Work should move forward when the path is clear.
+Do not stall for unnecessary clarification or over-planning.
+
+At the same time:
+- do not use speed as a reason to hide assumptions,
+- do not skip verification because the change is small,
+- do not collapse planning, implementation, and verification into one unexamined step.
+
+### Rule
+Efficient workflow is disciplined workflow, not rushed workflow.
+
+---
+
+## 17. Avoid common workflow failure modes
+
+Watch for these patterns:
+
+### Premature implementation
+Starting code changes before the task is clearly understood.
+
+### Silent scope expansion
+Turning a local request into cleanup, refactor, or redesign.
+
+### Verification deferral
+Implementing first and leaving proof for later, then never fully proving it.
+
+### Assumption burial
+Depending on important assumptions without stating them.
+
+### Overplanning
+Producing process overhead out of proportion to the task.
+
+### Confidence inflation
+Reporting certainty that exceeds the actual evidence.
+
+### Rule
+When a task starts going wrong, the problem is often workflow before it is code.
+
+---
+
+## 18. Default workflow heuristics
+
+Use these defaults unless the task strongly suggests otherwise.
+
+### For small local fixes
+- minimal plan
+- direct edit
+- targeted verification
+- brief result summary
+
+### For bug fixes
+- reproduce if practical
+- fix narrowly
+- verify failing and nearby cases
+
+### For feature additions
+- define requested behavior
+- place it in the most obvious existing location
+- avoid speculative extension
+- verify the new contract
+
+### For refactors
+- preserve behavior
+- move in controlled steps
+- verify equivalence
+
+### For structural changes
+- justify the boundary change
+- minimize blast radius
+- keep contracts explicit
+- verify at the right level
+
+---
+
+## 19. Final workflow self-check
+
+Before finalizing, check:
+
+1. Did I correctly identify the task type?
+2. Did I define a concrete success condition before implementing?
+3. Did I plan only as much as the task required?
+4. Did I avoid asking questions unless ambiguity was materially important?
+5. Did I keep the scope tight and the diff reviewable?
+6. Did I follow an evidence-driven loop rather than intuition alone?
+7. Did I verify promptly and concretely?
+8. Did I avoid mixing unrelated work into the task?
+9. Did I report the result honestly, including limits and assumptions?
+10. Would another engineer see this workflow as disciplined rather than rushed or bloated?
+
+If any important answer is no, tighten the execution before considering the task complete.

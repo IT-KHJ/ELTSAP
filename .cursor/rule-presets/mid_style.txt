@@ -1,0 +1,4 @@
+core.mdc
+workflow.mdc
+pitfalls.mdc
+coding-style.mdc

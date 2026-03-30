@@ -1,0 +1,3 @@
+core.mdc
+workflow.mdc
+pitfalls.mdc

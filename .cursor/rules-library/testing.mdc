@@ -1,0 +1,432 @@
+---
+description: Rules for verification, test scope, bug reproduction, and proving correctness
+alwaysApply: false
+---
+
+# Testing Rules
+
+Apply these rules whenever a task changes behavior, fixes a bug, modifies logic, affects contracts, or could reasonably break existing functionality.
+
+Testing is part of implementation, not a separate optional phase.
+A task is not complete when code has been written.
+A task is complete when the requested behavior has been verified with appropriate evidence.
+
+These rules cover:
+- what to verify,
+- how much to verify,
+- when to add tests,
+- when to update tests,
+- and how to report what was or was not actually validated.
+
+---
+
+## 1. Verification is mandatory
+
+Every non-trivial code change must be verified in some concrete way.
+
+Preferred forms of verification:
+- targeted automated tests,
+- existing test suite coverage relevant to the change,
+- reproduction of the original bug followed by proof it no longer occurs,
+- typecheck, lint, or build validation when relevant,
+- focused manual verification when automated tests are not practical.
+
+Do not treat:
+- "the code looks right,"
+- "it should work,"
+- "the logic is straightforward,"
+as sufficient verification.
+
+### Rule
+Implementation without verification is incomplete work.
+
+---
+
+## 2. Test the requested behavior, not everything imaginable
+
+Test scope should be driven by the task and the realistic risk around it.
+
+Prefer:
+- narrow tests for narrow behavior changes,
+- regression tests for specific bug fixes,
+- focused additions to nearby existing test coverage,
+- verification of the direct contract affected by the change.
+
+Do not:
+- build a full test matrix for a small local change,
+- add broad speculative coverage unrelated to the task,
+- test hypothetical future behaviors,
+- expand test scope just to appear thorough.
+
+### Rule
+Write the smallest set of checks that gives credible confidence in correctness.
+
+---
+
+## 3. For bug fixes, reproduce before fixing when practical
+
+When fixing a bug, the preferred sequence is:
+
+1. identify the failing behavior,
+2. reproduce it with a test or a clear verification step,
+3. implement the fix,
+4. verify the failure no longer occurs,
+5. verify closely related behavior was not unintentionally broken.
+
+If writing a reproduction test is practical, do that first.
+If it is not practical, explicitly state the reproduction method used.
+
+### Good examples
+- add a regression test that fails before the fix and passes after it
+- document a concrete input/output case that previously failed and now succeeds
+- verify a reported edge case directly instead of only checking the happy path
+
+### Rule
+A bug fix should leave behind evidence that the bug was real and is now addressed.
+
+---
+
+## 4. For behavior changes, verify both the new behavior and nearby invariants
+
+When a task intentionally changes behavior:
+
+- verify the new expected behavior directly,
+- verify pre-existing behavior that should remain unchanged,
+- verify contract boundaries if the change affects them,
+- check edge conditions only where they are realistically connected to the change.
+
+Examples:
+- if validation rules change, test valid and invalid cases relevant to that rule
+- if output shape changes, verify both the new shape and compatibility expectations
+- if conditional logic changes, cover the affected branches, not every unrelated branch in the file
+
+### Rule
+A behavior change is not verified until both the intended change and the intended non-change are demonstrated.
+
+---
+
+## 5. Prefer existing test patterns and locations
+
+When adding or updating tests:
+
+- use the project's existing testing framework and conventions,
+- place tests where similar tests already live,
+- follow existing naming patterns,
+- use nearby fixtures, helpers, and setup patterns if they fit,
+- keep the test shape consistent with the surrounding suite.
+
+Do not:
+- introduce a new testing style for a local task,
+- create a new test harness without a real need,
+- move tests around for organizational purity,
+- rewrite unrelated tests to match a preferred pattern.
+
+### Rule
+Tests should look like they belong to the current codebase.
+
+---
+
+## 6. Update tests when behavior changes
+
+If the requested change intentionally alters expected behavior, update the affected tests to reflect the new intended behavior.
+
+Do not leave:
+- outdated expectations,
+- misleading test names,
+- stale snapshots,
+- contradictory contract assertions.
+
+If existing tests fail because they encoded old correct behavior, update them deliberately.
+If they fail for unrelated reasons, do not silently reshape them to make the suite green.
+
+### Rule
+A changed contract should produce changed tests, not hidden test avoidance.
+
+---
+
+## 7. Add tests when the change introduces meaningful logic risk
+
+Adding a new test is strongly preferred when the task:
+- fixes a bug,
+- changes branching or validation logic,
+- changes data transformation rules,
+- changes a public or shared interface,
+- affects parsing, normalization, permissions, persistence, or state transitions,
+- or touches logic that has previously been error-prone.
+
+A new test may be unnecessary when:
+- the change is purely cosmetic,
+- the logic is already directly covered,
+- the task is a trivial rename with no behavior change,
+- or the project’s testing strategy does not support meaningful automation for that layer.
+
+### Rule
+Not every edit needs a new test, but every risky behavior change needs credible verification.
+
+---
+
+## 8. Prefer targeted regression tests over broad suites
+
+For bug fixes and narrow logic changes, favor:
+- one or a few focused regression tests,
+- small input/output cases,
+- direct assertions on the affected behavior,
+- narrow fixture setup.
+
+Avoid:
+- huge integration setups for a small pure function change,
+- adding many loosely related cases "just in case,"
+- large snapshot additions when precise assertions would be clearer,
+- tests whose size hides what behavior is actually being proved.
+
+### Rule
+A good regression test makes the failure mode obvious.
+
+---
+
+## 9. Test outcomes, not implementation details
+
+Tests should generally verify externally meaningful behavior:
+- returned values,
+- state changes,
+- persisted results,
+- visible output,
+- emitted events,
+- raised errors,
+- contract shape,
+- observable side effects.
+
+Avoid over-coupling tests to:
+- private helper structure,
+- internal variable names,
+- exact call ordering when it is not part of the contract,
+- incidental implementation choices,
+- refactor-sensitive internals.
+
+There are exceptions when internal behavior is itself the contract, but that should be intentional.
+
+### Rule
+Tests should protect behavior, not freeze implementation unnecessarily.
+
+---
+
+## 10. Keep test data small and purposeful
+
+Use the smallest input, fixture, or setup that proves the behavior.
+
+Prefer:
+- minimal representative examples,
+- one case per behavior when possible,
+- explicit edge cases only when they matter to the task,
+- small fixtures that reveal intent quickly.
+
+Avoid:
+- oversized fixtures that obscure what matters,
+- copied production-like payloads when a minimal object would do,
+- redundant cases that assert the same thing repeatedly,
+- test setup larger than the behavior under test requires.
+
+### Rule
+If understanding the test requires reading a page of setup, the test is probably too large.
+
+---
+
+## 11. Edge cases should be chosen, not sprayed
+
+Test edge cases that are:
+- directly implicated by the bug,
+- near the changed logic,
+- part of the contract,
+- historically fragile,
+- or likely to regress.
+
+Do not automatically add every imaginable edge case.
+
+Examples of justified edge coverage:
+- empty input when validation changed
+- nullability handling when parsing logic changed
+- boundary values when comparison logic changed
+- duplicate values when deduplication logic changed
+
+Examples of unjustified edge sprawl:
+- unrelated malformed shapes
+- hypothetical future options
+- distant integration conditions not touched by the change
+
+### Rule
+Edge-case coverage should be risk-based, not anxiety-based.
+
+---
+
+## 12. Integration vs unit scope should match the risk
+
+Choose the narrowest test level that credibly proves the behavior.
+
+Prefer unit or local tests when:
+- the logic is isolated,
+- the bug is local,
+- fast direct verification is enough.
+
+Prefer integration-level verification when:
+- the bug only appears across module boundaries,
+- the contract between components is the real risk,
+- state, persistence, or framework wiring is central to the behavior.
+
+Do not default to end-to-end scope for local logic.
+Do not default to micro-unit tests when the real risk is integration.
+
+### Rule
+Test at the level where the failure would actually happen.
+
+---
+
+## 13. Manual verification is acceptable when automation is not practical
+
+If automated testing is not practical for the task, use focused manual verification.
+
+Manual verification should be:
+- concrete,
+- reproducible,
+- scoped,
+- and honestly reported.
+
+Good manual verification includes:
+- the exact input used,
+- the exact path exercised,
+- the observed output or behavior,
+- the fact that adjacent expected behavior was checked when relevant.
+
+Bad manual verification includes:
+- "manually tested"
+- "works locally"
+- "seems fine"
+
+### Rule
+Manual verification is acceptable only when it is specific enough that another engineer could repeat it.
+
+---
+
+## 14. Do not fake confidence
+
+Only claim tests or verification steps that were actually run.
+
+Do not say:
+- tests pass, unless they were actually run,
+- build succeeds, unless it was actually run,
+- typecheck is clean, unless it was actually run,
+- verified manually, unless concrete manual verification actually happened.
+
+If you could not run something, say so explicitly.
+If verification is partial, say exactly what was and was not checked.
+
+### Good examples
+- "I added a regression test for the failing case and verified it passes."
+- "I did not run the full suite; I only ran the targeted test file."
+- "I could not execute the integration environment, so verification is limited to unit coverage."
+
+### Rule
+Honest verification boundaries are more valuable than overstated confidence.
+
+---
+
+## 15. Keep tests readable and reviewable
+
+Tests are code and must be easy to inspect.
+
+Prefer:
+- clear names describing the behavior under test,
+- arrange-act-assert structure when useful,
+- small setup,
+- explicit expected values,
+- one coherent behavior per test where possible.
+
+Avoid:
+- tests that hide intent behind helper layers,
+- large multi-assertion blocks proving unrelated things,
+- cryptic parameterized tables when simple cases would be clearer,
+- snapshots where targeted assertions would better explain the requirement.
+
+### Rule
+A test should tell the reader what behavior matters and why it failed.
+
+---
+
+## 16. Failures should point to the real contract
+
+When writing assertions, choose ones that make regressions diagnosable.
+
+Prefer:
+- exact assertions for meaningful outputs,
+- specific checks for validation and error conditions,
+- targeted checks for changed fields or state transitions,
+- direct assertions on behavior the task actually cares about.
+
+Avoid:
+- weak assertions that could pass for the wrong reasons,
+- broad truthiness checks when exact values matter,
+- assertions on noise around the real contract,
+- tests that fail but do not reveal what behavior regressed.
+
+### Rule
+A test should fail in a way that teaches the next reader what broke.
+
+---
+
+## 17. Do not use testing as a backdoor for redesign
+
+Do not reshape the test suite broadly just because you are touching related code.
+
+Avoid:
+- migrating unrelated test patterns,
+- rewriting neighboring tests for style,
+- introducing a new fixture strategy for one local change,
+- reorganizing test files without explicit need,
+- broad snapshot churn unrelated to the requested behavior.
+
+You may make small local test cleanup changes only when directly required by your implementation and kept tightly scoped.
+
+### Rule
+Test maintenance should support the task, not become a hidden refactor.
+
+---
+
+## 18. Verification reporting should be explicit
+
+When finishing a task, be prepared to state:
+
+- what behavior changed,
+- how it was verified,
+- what tests were added or updated,
+- what commands or checks were run,
+- what was not verified,
+- any remaining uncertainty or limits.
+
+Do not report verification vaguely.
+Do not imply broader coverage than actually exists.
+
+### Good reporting examples
+- "Added a regression test for empty input and ran the targeted test file."
+- "Updated the existing validation tests to reflect the new required field behavior."
+- "Manual verification covered create and update flows, but not the bulk import path."
+
+### Rule
+Verification reporting should make confidence measurable.
+
+---
+
+## 19. Final testing self-check
+
+Before finalizing, check:
+
+1. Did I verify the requested behavior concretely?
+2. If this was a bug fix, did I reproduce the failure before or otherwise clearly define it?
+3. Did I test the changed behavior rather than expanding into unrelated coverage?
+4. Did I update outdated tests if the contract changed?
+5. Are the tests aligned with existing project patterns?
+6. Did I choose the right test scope for the actual risk?
+7. Are assertions focused on behavior rather than fragile implementation details?
+8. Is manual verification, if used, specific and repeatable?
+9. Did I avoid overstating what was verified?
+10. Would another engineer trust the evidence that this change is correct?
+
+If any important answer is no, tighten the verification before finalizing.

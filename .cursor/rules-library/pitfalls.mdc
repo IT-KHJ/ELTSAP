@@ -1,0 +1,359 @@
+---
+description: Common failure patterns to avoid when implementing code changes
+alwaysApply: false
+---
+
+# Common Pitfalls
+
+This file lists common implementation mistakes that frequently occur during coding tasks.
+
+These are not stylistic issues.
+They are behavioral patterns that lead to incorrect solutions, unnecessary complexity, or difficult-to-review diffs.
+
+When any of these patterns appear, stop and reassess the approach.
+
+---
+
+# 1. Silent requirement invention
+
+One of the most common mistakes is implementing behavior that was never requested.
+
+Examples:
+- adding optional parameters not requested
+- supporting additional input formats not mentioned
+- introducing fallback behavior that was not specified
+- implementing configuration for a single fixed behavior
+- adding retry logic, logging, or caching without need
+
+Why this is dangerous:
+- it increases surface area without justification
+- it may conflict with the real intended design
+- it expands testing requirements unnecessarily
+
+Correct approach:
+- implement only what the request explicitly requires
+- if missing requirements affect correctness, ask for clarification
+
+Rule:
+Missing requirements are not permission to design new features.
+
+---
+
+# 2. Overengineering simple tasks
+
+Small tasks often become unnecessarily complex when:
+
+- abstraction is introduced too early
+- generic helpers are created prematurely
+- flexible configuration is added
+- extensibility is designed without real use cases
+- extra architectural layers appear
+
+Examples:
+- introducing an interface for a single implementation
+- creating a utility module for one function
+- designing plugin-like architecture for a one-off feature
+
+Why this is harmful:
+- increases maintenance cost
+- makes simple logic harder to understand
+- spreads code across more locations than necessary
+
+Correct approach:
+Prefer the simplest implementation that satisfies the requirement.
+
+Rule:
+Duplicate small logic before introducing unearned abstraction.
+
+---
+
+# 3. Refactoring unrelated code
+
+A frequent mistake is editing code that is not part of the task.
+
+Examples:
+- renaming variables across a file
+- reorganizing imports
+- rewriting comments
+- reformatting large sections
+- restructuring functions unrelated to the change
+
+Why this is harmful:
+- makes diffs harder to review
+- increases merge conflicts
+- hides the real change
+
+Correct approach:
+Limit edits strictly to code required by the task.
+
+Rule:
+Every changed line must trace directly to the request.
+
+---
+
+# 4. Fixing symptoms instead of causes
+
+Another common failure is applying a patch without understanding the root cause.
+
+Examples:
+- adding null checks without understanding why null occurs
+- suppressing errors instead of fixing invalid state
+- wrapping failing code in try/catch without addressing the problem
+- adding default values where validation should exist
+
+Why this is harmful:
+- hides real defects
+- introduces inconsistent behavior
+- creates fragile systems
+
+Correct approach:
+Understand the failure path before modifying the code.
+
+Rule:
+A correct fix explains the bug, not just hides it.
+
+---
+
+# 5. Hidden behavior changes
+
+Sometimes changes unintentionally modify behavior beyond the requested scope.
+
+Examples:
+- changing validation rules
+- altering default values
+- modifying return shapes
+- altering error messages relied on by callers
+- changing ordering or side effects
+
+Why this is dangerous:
+- breaks dependent code
+- introduces subtle regressions
+
+Correct approach:
+Verify that unrelated behavior remains unchanged.
+
+Rule:
+Behavior should change only where explicitly required.
+
+---
+
+# 6. Accidental architecture work
+
+Small edits sometimes evolve into structural redesign.
+
+Examples:
+- introducing new modules during a bug fix
+- creating service layers for a local feature
+- replacing working code with a “cleaner” pattern
+- adding repositories or adapters without necessity
+
+Why this is harmful:
+- dramatically increases change scope
+- introduces new bugs
+- creates partial architecture patterns
+
+Correct approach:
+Solve the task within the existing structure unless structural change is required.
+
+Rule:
+Feature work is not architecture work.
+
+---
+
+# 7. Premature generalization
+
+This occurs when code is written for hypothetical future use.
+
+Examples:
+- adding generic type systems for a single case
+- designing configurable pipelines
+- introducing strategy patterns without multiple strategies
+- abstracting logic after one duplication
+
+Why this is harmful:
+- complicates code prematurely
+- hides the real use case
+- makes debugging harder
+
+Correct approach:
+Wait for real duplication or requirements before generalizing.
+
+Rule:
+Generalization must be earned by real usage.
+
+---
+
+# 8. Excessive defensive programming
+
+Code sometimes becomes overloaded with unnecessary protection.
+
+Examples:
+- validating impossible states
+- checking conditions guaranteed by upstream logic
+- defensive branching for unsupported input types
+- complex error handling for unreachable states
+
+Why this is harmful:
+- increases code size
+- hides real invariants
+- makes reasoning harder
+
+Correct approach:
+Trust established invariants unless they are proven unreliable.
+
+Rule:
+Protect against realistic failures, not hypothetical ones.
+
+---
+
+# 9. Implementation without verification
+
+A very common issue is declaring completion without proof.
+
+Examples:
+- assuming the code works because it compiles
+- skipping tests
+- claiming verification that was not performed
+- not checking the original failure case
+
+Why this is harmful:
+- bugs remain undetected
+- confidence is inflated
+- regressions go unnoticed
+
+Correct approach:
+Always verify behavior after implementing.
+
+Rule:
+Code is not complete until verified.
+
+---
+
+# 10. Expanding task scope during implementation
+
+Tasks sometimes grow unintentionally during coding.
+
+Examples:
+- starting with a bug fix and ending with a partial rewrite
+- adding optional improvements not requested
+- extending validation rules beyond requirements
+- reorganizing files during implementation
+
+Why this is harmful:
+- increases review complexity
+- hides the original change
+- introduces new risk
+
+Correct approach:
+Complete the requested task first.
+Improvements can be suggested separately.
+
+Rule:
+Finish the task before improving the system.
+
+---
+
+# 11. Misleading confidence
+
+Another common issue is overstating certainty.
+
+Examples:
+- claiming something is safe without verifying dependencies
+- stating that behavior is unchanged without checking
+- saying tests pass without running them
+- assuming callers do not depend on certain behavior
+
+Why this is harmful:
+- creates false trust
+- leads to production issues
+- hides real uncertainty
+
+Correct approach:
+Be explicit about what was verified and what was not.
+
+Rule:
+Honest uncertainty is better than confident guesswork.
+
+---
+
+# 12. Complex solutions to simple problems
+
+Sometimes complexity grows gradually during implementation.
+
+Examples:
+- adding layers of indirection
+- breaking logic into too many helpers
+- introducing intermediate objects unnecessarily
+- chaining transformations that obscure intent
+
+Why this is harmful:
+- reduces readability
+- increases debugging difficulty
+- makes maintenance harder
+
+Correct approach:
+Prefer clear, direct solutions.
+
+Rule:
+If a simpler version exists that solves the same problem, prefer it.
+
+---
+
+# 13. Diff noise hiding the real change
+
+Large diffs often obscure the important part of the change.
+
+Examples:
+- formatting entire files
+- moving code unnecessarily
+- renaming unrelated identifiers
+- combining logic changes with formatting cleanup
+
+Why this is harmful:
+- reviewers cannot easily identify the real change
+- regressions are harder to detect
+
+Correct approach:
+Keep diffs focused and minimal.
+
+Rule:
+The change should be obvious from the diff.
+
+---
+
+# 14. Ignoring existing patterns
+
+Sometimes new code ignores the established patterns of the project.
+
+Examples:
+- introducing a different validation style
+- using a different error-handling approach
+- placing logic in an unexpected location
+- introducing new helper conventions
+
+Why this is harmful:
+- fragments the codebase
+- increases cognitive load for maintainers
+
+Correct approach:
+Follow patterns already present in the project.
+
+Rule:
+Consistency within the project is more important than stylistic preference.
+
+---
+
+# 15. Final pitfall check
+
+Before completing a task, ask:
+
+- Did I invent behavior that was not requested?
+- Did I introduce unnecessary abstraction?
+- Did I modify code unrelated to the task?
+- Did I fix the root cause rather than the symptom?
+- Did I accidentally change other behavior?
+- Did I expand the scope of the task?
+- Did I add complexity that was not required?
+- Did I actually verify the result?
+
+If any answer is yes, reconsider the implementation.

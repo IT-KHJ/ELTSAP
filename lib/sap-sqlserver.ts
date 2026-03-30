@@ -417,28 +417,6 @@ export async function querySapOrdersDateRange(
   }
 }
 
-/** ODLN docentry 조회 (증분 동기화 삭제용). since 이후 CreateDate/UpdateDate 변경된 문서 - canceled 포함 */
-export async function querySapOrdersTouchedDocentries(since: string): Promise<number[]> {
-  const pool = await getPool();
-  try {
-    const req = pool
-      .request()
-      .input("minDate", sql.VarChar(10), DATE_MIN_SYNC)
-      .input("since", sql.VarChar(10), since);
-    const result = await req.query(`
-      SELECT DISTINCT o.docentry
-      FROM ODLN o
-      WHERE o.cardcode IN (SELECT cardcode FROM OCRD WHERE groupcode IN ('100','104') AND u_costcd = '24021')
-        AND o.docdate >= @minDate
-        AND (CAST(o.CreateDate AS DATE) >= CAST(@since AS DATE) OR CAST(o.UpdateDate AS DATE) >= CAST(@since AS DATE))
-    `);
-    const rows = (result.recordset ?? []) as Array<{ docentry: number }>;
-    return rows.map((r) => Number(r.docentry) || 0).filter((id) => id > 0);
-  } finally {
-    await pool.close();
-  }
-}
-
 /** DLN1 + ODLN → orders 동기화. since 있으면 증분(ODLN CreateDate/UpdateDate), 없으면 전체(docdate >= 2024-01-01) */
 export async function querySapOrders(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();

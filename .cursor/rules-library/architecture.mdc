@@ -1,0 +1,364 @@
+---
+description: Rules for architectural decisions, boundaries, abstractions, and structural changes
+alwaysApply: false
+---
+
+# Architecture Rules
+
+Apply these rules when a task affects:
+- module boundaries,
+- public interfaces,
+- shared utilities,
+- data flow,
+- service composition,
+- persistence or state ownership,
+- dependency direction,
+- cross-cutting concerns,
+- or any structural design beyond a local code edit.
+
+These rules do not justify broad redesign by default.
+They exist to keep structural changes intentional, minimal, and aligned with the actual task.
+
+---
+
+## 1. Architecture is not the default response
+
+Do not escalate a local problem into an architectural change unless the task actually requires it.
+
+Prefer:
+- a local fix over introducing a new layer,
+- an existing module over creating a new abstraction,
+- a narrow interface change over redesigning multiple boundaries,
+- a small extension of an existing pattern over a new system.
+
+Do not interpret a small feature request as permission to redesign the surrounding subsystem.
+
+### Rule
+If a problem can be solved locally without harming clarity or maintainability, solve it locally.
+
+---
+
+## 2. Structural changes require justification
+
+Before introducing any architectural change, identify the concrete reason.
+
+Valid reasons include:
+- the task cannot be completed cleanly within the current boundaries,
+- the existing structure causes duplication that is directly relevant to the task,
+- the current dependency direction blocks correct implementation,
+- a shared behavior now truly has multiple real call sites,
+- the change affects a public contract that must be made explicit,
+- the current structure makes verification or correctness meaningfully worse.
+
+Invalid reasons include:
+- "it feels cleaner,"
+- "it might be useful later,"
+- "this is more extensible,"
+- "this is how I usually design it,"
+- "while I am here, I can improve the structure."
+
+Architecture must be driven by demonstrated need, not stylistic preference.
+
+---
+
+## 3. Prefer existing boundaries
+
+Before creating something new, check whether the current structure already provides an appropriate place.
+
+Prefer:
+- extending an existing module over creating a sibling module,
+- reusing an existing interface over introducing a new one,
+- keeping behavior near its primary usage unless it is genuinely shared,
+- following current dependency flow unless there is a concrete reason to change it.
+
+Do not create:
+- new service layers,
+- new utility modules,
+- new adapter patterns,
+- new repositories,
+- new base classes,
+- new generic helpers,
+unless the current task actually requires them.
+
+### Placement rule
+Put code where a maintainer would expect to find it based on current project structure, not where an idealized architecture diagram would place it.
+
+---
+
+## 4. Abstractions must be earned
+
+Do not introduce abstraction before there is real evidence it is needed.
+
+Evidence may include:
+- multiple real use cases with the same behavior,
+- repeated logic that is stable enough to share,
+- a genuine need to isolate an external dependency,
+- a boundary that improves correctness or testability for this task.
+
+Do not abstract merely because:
+- two pieces of code look somewhat similar,
+- a future use case is imaginable,
+- a pattern from another codebase could fit here,
+- a local implementation feels too direct.
+
+### Anti-patterns
+Avoid introducing:
+- interfaces with only one implementation and no real need for substitution,
+- generic helpers used once,
+- configuration-driven behavior for a single fixed workflow,
+- extension hooks that no current code uses,
+- indirection layers that only forward calls without adding clear value.
+
+### Rule
+Duplicate a small amount of code before creating an abstraction that the codebase has not yet earned.
+
+---
+
+## 5. Preserve clear ownership
+
+Every important behavior should have a clear owner.
+
+When changing structure, make ownership of the following obvious:
+- business rules,
+- validation,
+- state mutation,
+- persistence,
+- side effects,
+- API contracts,
+- transformation logic.
+
+Avoid architectures where responsibility becomes ambiguous across multiple layers.
+
+Bad signs:
+- validation split across unrelated layers without a reason,
+- state mutated in more than one place without clear ownership,
+- business rules scattered across controllers, utilities, and models,
+- one layer existing only to pass data through another.
+
+### Ownership rule
+A new layer is justified only if it makes ownership clearer, not merely more abstract.
+
+---
+
+## 6. Keep dependency direction simple
+
+Dependencies should remain easy to understand.
+
+Prefer:
+- one-way dependency flow,
+- stable modules depending less on volatile details,
+- feature code depending on shared primitives, not the reverse,
+- domain logic isolated from infrastructure details when the task actually benefits from that separation.
+
+Avoid:
+- circular dependencies,
+- shared modules that import feature-specific code,
+- utility layers that secretly depend on application state,
+- structural changes that make dependency direction less obvious.
+
+### Rule
+Do not trade a small local duplication for a harder-to-understand dependency graph unless there is a strong correctness reason.
+
+---
+
+## 7. Public interfaces are high-cost changes
+
+Treat changes to public interfaces, shared contracts, and widely used APIs as architectural decisions.
+
+Before changing them, check:
+- who depends on them,
+- whether the change is additive or breaking,
+- whether call sites can remain compatible,
+- whether the contract becomes clearer or more confusing,
+- whether the behavior belongs in the interface at all.
+
+Prefer:
+- additive changes over breaking ones,
+- preserving current call-site behavior where possible,
+- narrowing the blast radius of interface changes.
+
+Do not casually change:
+- function signatures used across modules,
+- shared type definitions,
+- payload shapes,
+- event contracts,
+- persistence schemas,
+- cross-module utility behavior.
+
+### Rule
+A small implementation convenience is not enough reason to widen a public contract.
+
+---
+
+## 8. Data flow should remain obvious
+
+When a task changes how data moves through the system:
+
+- keep the path easy to trace,
+- minimize hidden transformations,
+- avoid unnecessary intermediate layers,
+- make validation and normalization points explicit,
+- keep side effects close to the boundary where they occur.
+
+Prefer explicit flow over clever composition.
+
+Bad signs:
+- data transformed multiple times without need,
+- normalization happening in inconsistent places,
+- important state derived indirectly through unrelated helpers,
+- side effects hidden inside generic utilities.
+
+### Rule
+A maintainer should be able to answer "where does this value come from, where is it validated, and where is it used?" without reconstructing the whole system.
+
+---
+
+## 9. Shared utilities should stay narrow
+
+Only create or expand shared utilities when the shared behavior is:
+- genuinely cross-cutting,
+- stable enough to centralize,
+- and unlikely to drag feature-specific assumptions into a common layer.
+
+Do not move logic into shared code if it is still shaped by one feature's semantics.
+
+### Good candidates for shared code
+- well-defined formatting rules used in multiple places
+- stable parsing logic used by multiple modules
+- thin wrappers around external libraries where consistency matters
+- common validation primitives that are not feature-specific
+
+### Bad candidates for shared code
+- feature-specific business rules
+- half-generalized helpers with hidden assumptions
+- utilities created after a single duplicate occurrence
+- modules whose name is generic but whose behavior is specific
+
+### Rule
+Shared code should become more general by proving it is shared, not by being named generically.
+
+---
+
+## 10. State and side effects need explicit boundaries
+
+When dealing with stateful code or side effects:
+
+- keep reads, writes, and side effects easy to locate,
+- do not hide mutation behind innocent-looking helpers,
+- keep external I/O at recognizable boundaries,
+- separate pure transformation from side-effect execution when that improves correctness or testability,
+- avoid spreading state ownership across multiple layers.
+
+Side effects include:
+- database writes,
+- network calls,
+- file system access,
+- cache mutation,
+- event emission,
+- timers,
+- environment-dependent behavior.
+
+### Rule
+If a structural change makes side effects harder to see, it is probably a worse design.
+
+---
+
+## 11. Favor additive evolution over broad replacement
+
+When existing architecture is imperfect but workable:
+
+- extend it carefully rather than replacing it wholesale,
+- make the smallest structural move that unlocks the task,
+- prefer compatibility with nearby code over local architectural purity,
+- leave deeper redesign for an explicit refactor task.
+
+Do not turn feature work into architecture cleanup.
+
+### Rule
+Improvement is allowed. Incidental redesign is not.
+
+---
+
+## 12. Architecture decisions must remain testable
+
+A structural change should make behavior easier to verify, or at minimum not harder.
+
+Prefer designs where:
+- responsibilities are easy to isolate,
+- inputs and outputs are visible,
+- side effects are controllable,
+- contracts are explicit,
+- failures have a clear location.
+
+Avoid designs where:
+- critical behavior is spread across indirection layers,
+- verification requires reconstructing hidden control flow,
+- mocks or setup become more complex without clear benefit,
+- the structure is cleaner in theory but harder to prove correct.
+
+### Rule
+If the architecture makes testing or verification more complicated, the architectural benefit must be concrete and significant.
+
+---
+
+## 13. Migration cost matters
+
+Before introducing a structural change, consider:
+- how many files it touches,
+- how many call sites it affects,
+- whether it creates partial patterns,
+- whether it can be adopted incrementally,
+- whether the codebase will become less consistent during transition.
+
+Avoid introducing a new pattern that only one place uses unless the task explicitly begins that migration.
+
+### Rule
+Do not create architectural debt in the name of architectural improvement.
+
+---
+
+## 14. When to keep the current structure
+
+Keep the current structure when:
+- the task is local,
+- the implementation is understandable without a new abstraction,
+- duplication is still small and localized,
+- the existing boundary is imperfect but serviceable,
+- a structural change would widen the diff substantially,
+- the architecture change is motivated mainly by taste.
+
+In these cases, note the limitation if necessary, but do not redesign.
+
+---
+
+## 15. When structural change is justified
+
+A structural change is justified when most of the following are true:
+- the task cannot be completed cleanly within the current structure,
+- the new structure reduces actual complexity rather than moving it,
+- ownership becomes clearer,
+- dependency flow becomes simpler or safer,
+- verification remains practical or improves,
+- the blast radius is controlled,
+- the change solves a present problem rather than a hypothetical future one.
+
+If these conditions are not met, prefer the smaller local solution.
+
+---
+
+## 16. Final architecture self-check
+
+Before finalizing any structural change, check:
+
+1. Did I introduce a new abstraction only because it is currently needed?
+2. Did I preserve or improve clarity of ownership?
+3. Did I avoid widening module boundaries without a concrete reason?
+4. Did I keep dependency direction understandable?
+5. Did I minimize impact on public interfaces?
+6. Did I avoid moving feature-specific logic into shared layers too early?
+7. Did I keep data flow and side effects easy to trace?
+8. Did I choose additive evolution over unnecessary redesign?
+9. Is the resulting structure easier, or at least not harder, to verify?
+10. Would a maintainer see this as a necessary structural choice rather than an opportunistic rewrite?
+
+If any important answer is no, simplify the design.

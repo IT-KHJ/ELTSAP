@@ -1,0 +1,415 @@
+---
+description: Rules for code style, readability, naming, local consistency, and expression-level implementation choices
+alwaysApply: false
+---
+
+# Coding Style Rules
+
+Apply these rules when writing or editing code.
+These rules govern how code should be expressed, organized locally, and kept readable.
+
+They do not justify changing unrelated code for style consistency.
+When in doubt, prefer matching the surrounding file over enforcing an abstract preference.
+
+---
+
+## 1. Match local style first
+
+The first style rule is to follow the style already present in the file and nearby module.
+
+Match the surrounding code for:
+- naming patterns,
+- control-flow style,
+- function structure,
+- file organization,
+- comment style,
+- error-handling style,
+- import style,
+- test idioms,
+- type annotation conventions,
+- spacing and formatting conventions that are not automatically handled by tooling.
+
+Do not rewrite surrounding code to match your preferred style.
+Do not introduce a new local style unless the task explicitly requires it.
+
+### Rule
+Local consistency is more important than abstract stylistic purity.
+
+---
+
+## 2. Prefer readability over cleverness
+
+Write code that is easy to read on first inspection.
+
+Prefer:
+- direct control flow,
+- explicit conditions,
+- obvious data transformations,
+- simple loops when they are clearer,
+- short helper functions only when they genuinely clarify intent.
+
+Avoid:
+- dense one-liners that hide meaning,
+- overly clever chaining,
+- indirect abstractions for simple logic,
+- compressed expressions that reduce traceability,
+- unusual language features used mainly to look concise.
+
+### Rule
+If a maintainer has to mentally decompile the expression to understand it, it is too clever.
+
+---
+
+## 3. Keep code close to the level of the task
+
+Use the simplest expression level that fits the job.
+
+Prefer:
+- inline logic for very small one-off behavior,
+- local helpers for repeated local behavior,
+- existing shared helpers only when they already fit cleanly.
+
+Do not:
+- extract tiny helpers just to make code look modular,
+- create utility functions for single use,
+- split obvious logic across multiple indirection points,
+- introduce wrappers that add no semantic value.
+
+### Rule
+A helper should make intent clearer, not merely reduce line count.
+
+---
+
+## 4. Naming should be specific and honest
+
+Choose names that reflect actual behavior and scope.
+
+Prefer names that are:
+- concrete,
+- scoped to their responsibility,
+- consistent with nearby naming,
+- precise about what the code does.
+
+Avoid names that are:
+- overly generic,
+- more abstract than the behavior,
+- misleadingly broad,
+- future-facing without current justification.
+
+### Good naming principles
+- Use domain language already present in the codebase.
+- Name by behavior, not aspiration.
+- Keep small local variables short only when the meaning remains obvious.
+- Use broader names only for genuinely broad responsibilities.
+
+### Avoid
+- `processData` when the code validates a specific payload
+- `manager`, `handler`, `helper`, `utils`, `common` unless the surrounding codebase already uses them meaningfully
+- names that imply generality for feature-specific behavior
+- abbreviations that are not already established in the codebase
+
+### Rule
+Do not make code sound more reusable or architectural than it actually is.
+
+---
+
+## 5. Prefer explicit control flow
+
+Make branching and behavior easy to follow.
+
+Prefer:
+- explicit conditionals over compressed branching when readability improves,
+- early returns to reduce unnecessary nesting,
+- straightforward branching for distinct cases,
+- clearly separated happy path and edge cases when that improves comprehension.
+
+Avoid:
+- nesting that can be flattened safely,
+- collapsing multiple behaviors into a single dense conditional,
+- hidden control flow inside helpers that look harmless,
+- relying on expression tricks where statements would be clearer.
+
+### Rule
+Control flow should be visible from the shape of the code.
+
+---
+
+## 6. Keep functions focused
+
+Functions should do one coherent job at one level of abstraction.
+
+A function is likely too broad if it:
+- validates input,
+- transforms data,
+- performs business logic,
+- persists state,
+- handles formatting,
+- and emits side effects,
+all in one block without clear need.
+
+Prefer functions where:
+- the purpose can be stated in one sentence,
+- the inputs and outputs are understandable,
+- side effects are obvious,
+- the level of abstraction stays consistent.
+
+Do not split a function purely for style if the resulting helpers are trivial and less readable.
+
+### Rule
+A focused function is not necessarily a short function.
+It is a function with a clear and coherent responsibility.
+
+---
+
+## 7. Keep levels of abstraction consistent
+
+Within a function or block, avoid mixing:
+- high-level orchestration,
+- low-level parsing details,
+- formatting minutiae,
+- storage operations,
+- and side-effect mechanics,
+without a clear structure.
+
+Try to keep each function operating at one main level:
+- orchestration,
+- transformation,
+- validation,
+- persistence,
+- presentation,
+or another clearly defined responsibility.
+
+### Rule
+Do not jump between conceptual layers inside the same small block unless the code is still obviously readable.
+
+---
+
+## 8. Comments should add information, not narration
+
+Write comments only when they help a reader understand something not obvious from the code.
+
+Useful comments explain:
+- why a choice was made,
+- a non-obvious constraint,
+- an external invariant,
+- a compatibility concern,
+- a deliberate tradeoff,
+- a subtle edge case not clear from the code itself.
+
+Do not write comments that merely restate the code.
+
+Avoid comments like:
+- "increment index"
+- "check if null"
+- "return result"
+
+Do not add comments to compensate for unclear code when clearer code would solve the issue.
+
+### Rule
+Prefer self-explanatory code plus selective high-value comments.
+
+---
+
+## 9. Respect existing comment and documentation scope
+
+When editing code:
+- keep existing comments unless they become wrong because of your change,
+- update comments that your change invalidates,
+- do not rewrite unrelated comments for style,
+- do not expand documentation scope unless the task requires it.
+
+If the code becomes clearer by removing a comment made obsolete by your change, that is acceptable.
+Do not use comment cleanup as a reason to broaden the diff.
+
+---
+
+## 10. Be conservative with formatting changes
+
+Do not reformat unrelated code.
+
+Only change formatting when:
+- it is required by the toolchain,
+- it is necessary to keep the edited block readable,
+- or your edit directly requires the surrounding structure to move.
+
+Avoid:
+- line-wrap churn outside the changed logic,
+- reordering unrelated imports,
+- changing quote style across untouched code,
+- converting whole files to a different formatting pattern,
+- whitespace-only changes outside the edited area unless tooling forces them.
+
+### Rule
+Formatting should support the change, not become the change.
+
+---
+
+## 11. Keep imports stable and minimal
+
+When editing imports:
+
+- add only what is needed,
+- remove imports made unused by your own change,
+- keep existing import conventions,
+- avoid import reordering unless tooling or the file's established style requires it.
+
+Do not:
+- reorganize the full import block for cleanliness alone,
+- replace existing import style with a preferred one,
+- broaden imports unnecessarily,
+- pull in a new dependency for a small problem if existing code already provides a reasonable pattern.
+
+### Rule
+Imports should reflect the change, not advertise a cleanup pass.
+
+---
+
+## 12. Type annotations should clarify, not decorate
+
+Use type annotations when they improve correctness, readability, or consistency with the codebase.
+
+Prefer:
+- annotations for public or widely used interfaces,
+- annotations where the type is not obvious,
+- explicit types where inference would hide an important contract,
+- consistency with surrounding files and project conventions.
+
+Avoid:
+- verbose annotations that repeat what is already obvious,
+- forcing additional generic complexity for a small local change,
+- introducing a new typing style in a file that uses another style,
+- expanding type surface area unrelated to the task.
+
+### Rule
+Types should help readers and tools understand the code, not make the edit look more formal.
+
+---
+
+## 13. Error messages and user-visible strings should be precise
+
+When writing messages:
+- describe the actual problem,
+- keep wording concrete,
+- avoid vague failure text,
+- stay consistent with the surrounding product or API tone,
+- avoid exposing internal implementation details unless that is the project norm.
+
+Prefer:
+- actionable messages when the caller can respond to them,
+- exact field or condition names when useful,
+- consistent terminology with the rest of the codebase.
+
+Avoid:
+- generic strings like "Something went wrong"
+- inaccurate or over-broad messages
+- messages copied from nearby code when the condition is different
+
+### Rule
+A message should help the reader understand the actual failure, not just signal that failure occurred.
+
+---
+
+## 14. Keep data transformations easy to trace
+
+When mapping, filtering, reducing, parsing, or reshaping data:
+
+- prefer explicit names for intermediate values when they improve comprehension,
+- keep transformations close to their usage when they are simple,
+- separate major transformation stages when that makes behavior easier to inspect,
+- avoid long pipelines if they hide business meaning,
+- avoid mutating and transforming in confusing combinations.
+
+### Rule
+A reader should be able to explain what happens to the data without mentally simulating a dense expression chain.
+
+---
+
+## 15. Avoid style-driven abstraction
+
+Do not create abstraction merely because repeated syntax looks inelegant.
+
+A repeated pattern does not automatically need:
+- a helper,
+- a shared constant,
+- a utility function,
+- a base class,
+- a wrapper component,
+- a hook,
+- or a generic mapper.
+
+Extract only when the result is genuinely clearer, more correct, or already repeated enough to justify it.
+
+### Rule
+Style discomfort is not architectural evidence.
+
+---
+
+## 16. Keep diffs reviewable
+
+Write code in a way that keeps the resulting change easy to review.
+
+Prefer:
+- small, local edits,
+- preserving nearby structure,
+- changing one concept at a time,
+- minimizing noise from stylistic churn.
+
+Avoid:
+- mixing renames with logic changes without need,
+- mixing formatting cleanup with behavior changes,
+- reshaping code so heavily that the logic diff becomes harder to inspect,
+- moving code purely to satisfy a style preference.
+
+### Rule
+Readable code matters, but readable diffs matter too.
+
+---
+
+## 17. Language features should serve clarity
+
+Use language or framework features when they clearly improve correctness or readability in this codebase.
+
+Do not use a feature just because it is modern, expressive, or concise.
+
+Be cautious with:
+- advanced metaprogramming,
+- dense functional idioms,
+- hidden magic behavior,
+- framework-specific shortcuts that obscure execution,
+- highly compact syntax with non-obvious semantics.
+
+Prefer common, boring constructs when they are easier for the next maintainer to follow.
+
+### Rule
+Choose the most understandable feature that solves the problem well.
+
+---
+
+## 18. Consistency beats optimization of style
+
+If there is tension between:
+- matching the existing project style, and
+- applying an arguably cleaner personal style,
+
+prefer matching the project, unless the project explicitly standardizes otherwise.
+
+The codebase should not accumulate multiple stylistic dialects because of one task.
+
+---
+
+## 19. Final coding-style self-check
+
+Before finalizing, check:
+
+1. Does the edited code match the surrounding style?
+2. Did I choose readability over cleverness?
+3. Are names specific, honest, and locally consistent?
+4. Is control flow easy to follow?
+5. Are functions focused and coherent?
+6. Did I avoid comments that merely narrate the code?
+7. Did I avoid unrelated formatting and import churn?
+8. Did I avoid introducing abstraction for style reasons alone?
+9. Are types, messages, and transformations clear without being overbuilt?
+10. Will the diff be easy for another engineer to review?
+
+If any important answer is no, simplify or tighten the edit.

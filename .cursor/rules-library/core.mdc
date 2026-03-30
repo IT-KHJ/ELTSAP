@@ -1,0 +1,247 @@
+---
+description: Core operational rules that apply to all coding tasks
+alwaysApply: true
+---
+
+# Core Rules
+
+These rules apply to every coding task.
+
+Follow them before writing code, while implementing changes, and before declaring completion.
+
+If any rule conflicts with another instruction, prefer the option that results in:
+
+- the smallest correct change
+- the least speculation
+- the clearest verification
+
+---
+
+# Non-negotiable rules
+
+Never violate these rules:
+
+- Do not invent requirements or behavior.
+- Do not add features that were not requested.
+- Do not introduce abstraction unless it is required by the current task.
+- Do not modify unrelated code.
+- Do not expand the scope of the task.
+- Do not change public interfaces for local convenience.
+- Do not declare completion without verification.
+
+---
+
+# 1. Understand the task and context before coding
+
+Before writing code:
+
+- Identify what was explicitly requested.
+- Identify what outcome counts as success.
+- Review the relevant code path, call sites, and nearby tests when applicable.
+- Separate confirmed requirements from assumptions.
+
+If ambiguity would materially change behavior, public interface, data contract, or persistence behavior, ask for clarification.
+
+If ambiguity is minor and the surrounding code clearly establishes the intended behavior, proceed with a minimal assumption and state it explicitly.
+
+Rule:  
+Never hide uncertainty behind confident implementation.
+
+---
+
+# 2. Implement the smallest correct solution
+
+Prefer the narrowest implementation that solves the requested problem.
+Prefer extending existing code paths over introducing new ones.
+
+Prefer:
+
+- local fixes
+- direct logic
+- existing patterns
+- minimal edits
+
+Avoid:
+
+- new modules
+- new abstraction layers
+- configuration systems
+- extensibility mechanisms
+- architectural redesign
+
+Rule:  
+If a 20-line fix solves the task, do not build a 200-line system.
+
+---
+
+# 3. Do not invent behavior
+
+Only implement behavior that is required by the task.
+
+Do not add:
+
+- optional parameters
+- fallback behavior
+- retry logic
+- configuration
+- additional input formats
+- future-facing extensibility
+
+If required behavior is unclear, ask rather than guessing.
+
+Rule:  
+Missing requirements are not permission to design extra behavior.
+
+---
+
+# 4. Change only what the task requires
+
+Keep the diff focused.
+
+Do not:
+
+- refactor adjacent code
+- rename unrelated variables
+- reorganize imports unnecessarily
+- rewrite comments
+- reformat large sections
+- restructure functions without need
+
+Allowed cleanup:
+
+- removing unused imports created by your change
+- removing unused variables introduced by your change
+
+Rule:  
+Every changed line must trace directly to the request.
+
+---
+
+# 5. Respect existing code structure and patterns
+
+Prefer extending the current structure rather than replacing it.
+
+Follow patterns already present in the codebase.
+
+Do not introduce:
+
+- new service layers
+- new architecture patterns
+- new module boundaries
+- new abstractions
+
+unless the task cannot be completed correctly without duplicating logic or breaking existing contracts.
+
+Rule:  
+Feature work is not architecture work.
+
+---
+
+# 6. Make important assumptions explicit
+
+If the implementation depends on assumptions about inputs, callers, validation rules, or environment, state them clearly.
+
+Examples include:
+
+- input expectations
+- caller guarantees
+- validation assumptions
+- environment assumptions
+
+Rule:  
+Important assumptions must be visible.
+
+---
+
+# 7. Prefer clear and simple implementations
+
+Prefer code that is:
+
+- easy to read
+- easy to review
+- easy to reason about
+
+Avoid:
+
+- clever one-liners
+- unnecessary indirection
+- premature abstraction
+- excessive defensive logic
+
+Rule:  
+Simple and correct beats elegant and complex.
+
+---
+
+# 8. Verify the result
+
+Implementation is not completion.
+
+Always verify behavior after implementing.
+
+Verification may include:
+
+- automated tests
+- targeted regression checks
+- build, typecheck, or lint
+- manual verification using explicit inputs and observed outputs
+
+Rule:  
+Code is not complete until the requested behavior is verified.
+
+---
+
+# 9. Be honest about verification
+
+Do not claim checks that were not run.
+
+If verification is partial, say exactly what was and was not verified.
+
+Examples:
+
+- “Added a regression test and verified it passes.”
+- “Ran the targeted test file only.”
+- “Manual verification using input X produced output Y.”
+
+Rule:  
+Honest uncertainty is better than false confidence.
+
+---
+
+# 10. Keep changes reviewable
+
+Write code so the change is easy to review.
+
+Prefer:
+
+- small diffs
+- minimal file changes
+- single-purpose edits
+- clear behavior changes
+
+Avoid:
+
+- mixing refactor with behavior change
+- formatting noise
+- large unrelated edits
+
+Rule:  
+The important change should be obvious in the diff.
+
+---
+
+# Final self-check
+
+Before finishing, confirm:
+
+- Did I implement only what was requested?
+- Did I avoid guessing missing requirements?
+- Is this the smallest correct implementation?
+- Did I avoid modifying unrelated code?
+- Did I avoid unnecessary abstraction?
+- Did I keep the task scope unchanged?
+- Did I verify the result?
+- Are my assumptions explicit?
+- Is the diff easy to review?
+
+If any answer is no, revise the implementation.
