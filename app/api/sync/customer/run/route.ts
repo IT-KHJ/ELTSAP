@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
       aliasname: (r.aliasname as string) ?? null,
       billtodef: (r.billtodef as string) ?? null,
       u_delyn: (r.u_delyn as string) ?? null,
+      useyn: null,
     }));
     const result = await upsertCustomerBatch(rows);
     if (result.success) {

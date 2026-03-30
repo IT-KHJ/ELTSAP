@@ -41,6 +41,7 @@ export function mapSapRowToCustomer(r: Record<string, unknown>): CustomerRow {
     aliasname: toStr(r.aliasname ?? r.AliasName),
     billtodef: toStr(r.billtodef ?? r.BillToDef),
     u_delyn: toStr(r.u_delyn ?? r.U_Delyn),
+    useyn: null,
   };
 }
 

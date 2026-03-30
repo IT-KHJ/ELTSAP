@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       aliasname: r.aliasname ?? null,
       billtodef: r.billtodef ?? null,
       u_delyn: r.u_delyn ?? null,
+      useyn: r.useyn ?? null,
     }));
     const result = await upsertCustomerBatch(rows);
     return NextResponse.json(result);
