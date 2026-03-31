@@ -17,8 +17,8 @@ export async function upsertCustomerBatch(
   let updated = 0;
   const total = data.length;
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
-    // useyn은 로컬 관리 필드이므로 SAP sync에서 제외 (sync가 덮어쓰지 않도록)
-    const chunk = data.slice(i, i + BATCH_SIZE).map(({ useyn: _useyn, ...rest }) => rest);
+    // useyn, sido, sigun은 로컬 관리 필드이므로 SAP sync에서 제외 (sync가 덮어쓰지 않도록)
+    const chunk = data.slice(i, i + BATCH_SIZE).map(({ useyn: _useyn, sido: _sido, sigun: _sigun, ...rest }) => rest);
     const { data: upserted, error } = await admin
       .from("customer")
       .upsert(chunk, { onConflict: "cardcode" })
