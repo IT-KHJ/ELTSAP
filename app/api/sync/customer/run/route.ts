@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
       billtodef: (r.billtodef as string) ?? null,
       u_delyn: (r.u_delyn as string) ?? null,
       useyn: null,
+      sido: null,
+      sigun: null,
     }));
     const result = await upsertCustomerBatch(rows);
     if (result.success) {
