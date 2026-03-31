@@ -23,7 +23,7 @@ const NAV_ITEMS = [
 
 function getNavItems(allowedPaths: string[]) {
   const map = new Map(NAV_ITEMS.map((item) => [item.href, item]));
-  return allowedPaths.map((path) => map.get(path)).filter(Boolean) as typeof NAV_ITEMS[number][];
+  return allowedPaths.map((path) => map.get(path as typeof NAV_ITEMS[number]["href"])).filter(Boolean) as typeof NAV_ITEMS[number][];
 }
 
 async function getAuthenticatedUser() {
