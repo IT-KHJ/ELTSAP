@@ -21,6 +21,8 @@ export interface CustomerRow {
   billtodef: string | null;
   u_delyn: string | null;
   useyn: string | null;
+  sido: string | null;
+  sigun: string | null;
 }
 
 export interface ItemlistRow {

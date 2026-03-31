@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get("start")?.trim();
     const end = searchParams.get("end")?.trim();
     const salesType = (searchParams.get("salesType") as "all" | "sales" | "return") || "all";
+    const sido = searchParams.get("sido")?.trim() || null;
+    const sigun = searchParams.get("sigun")?.trim() || null;
 
     if (!start || !end) {
       return NextResponse.json(
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await getSalesStatusGroupedFromOrders(start, end, salesType);
+    const result = await getSalesStatusGroupedFromOrders(start, end, salesType, sido, sigun);
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.";

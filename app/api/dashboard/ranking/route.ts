@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     const startParam = searchParams.get("start");
     const endParam = searchParams.get("end");
     const cardcode = searchParams.get("cardcode")?.trim() || undefined;
+    const sido = searchParams.get("sido")?.trim() || undefined;
+    const sigun = searchParams.get("sigun")?.trim() || undefined;
     const sortBy = (searchParams.get("sortBy") as "sales" | "netSales" | "returns" | "returnRate" | "orderCount" | "sharePercent" | "cardname" | "aliasname") || "sales";
     const order = (searchParams.get("order") as "asc" | "desc") || "desc";
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
@@ -31,6 +33,8 @@ export async function GET(request: NextRequest) {
 
     const result = await getCustomerRanking(startDate, endDate, {
       cardcode,
+      sido,
+      sigun,
       sortBy,
       order,
       page,

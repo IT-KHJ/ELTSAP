@@ -26,6 +26,8 @@ export default function SalesStatusPage() {
   const [searchQuery, setSearchQuery] = useState("전체");
   const [options, setOptions] = useState<CustomerOption[]>([]);
   const [salesType, setSalesType] = useState<SalesType>("all");
+  const [sido, setSido] = useState("");
+  const [sigun, setSigun] = useState("");
   const [rows, setRows] = useState<SalesStatusRow[]>([]);
   const [summary, setSummary] = useState<SalesStatusSummary | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -45,9 +47,11 @@ export default function SalesStatusPage() {
       try {
         const cardcode = customer?.cardcode ?? null;
         const currentOffset = isLoadMore ? offset : 0;
-        const res = await fetch(
-          `/api/sales-status?start=${startDate}&end=${endDate}&salesType=${salesType}&offset=${currentOffset}&limit=100${cardcode ? `&cardcode=${encodeURIComponent(cardcode)}` : ""}`
-        );
+        let url = `/api/sales-status?start=${startDate}&end=${endDate}&salesType=${salesType}&offset=${currentOffset}&limit=100`;
+        if (cardcode) url += `&cardcode=${encodeURIComponent(cardcode)}`;
+        if (sido) url += `&sido=${encodeURIComponent(sido)}`;
+        if (sigun) url += `&sigun=${encodeURIComponent(sigun)}`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         if (isLoadMore) {
@@ -75,7 +79,7 @@ export default function SalesStatusPage() {
         setLoading(false);
       }
     },
-    [startDate, endDate, salesType, customer?.cardcode, offset, modal]
+    [startDate, endDate, salesType, customer?.cardcode, sido, sigun, offset, modal]
   );
 
   const handleLoad = useCallback(() => {
@@ -117,6 +121,10 @@ export default function SalesStatusPage() {
           onSearchFocus={() => searchCustomers(searchQuery)}
           salesType={salesType}
           onSalesTypeChange={setSalesType}
+          sido={sido}
+          sigun={sigun}
+          onSidoChange={(v) => { setSido(v); setSigun(""); }}
+          onSigunChange={setSigun}
           onLoad={handleLoad}
           loading={loading}
         />

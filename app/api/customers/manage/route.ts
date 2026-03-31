@@ -26,7 +26,7 @@ export async function GET() {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
       .from("customer")
-      .select("cardcode, useyn, cardname, address, phone1, phone2, cntctprsn, repname, vatregnum, e_mail, fax")
+      .select("cardcode, useyn, sido, sigun, cardname, address, phone1, phone2, cntctprsn, repname")
       .order("cardname");
 
     if (error) throw error;
@@ -37,7 +37,7 @@ export async function GET() {
   }
 }
 
-const EDITABLE_FIELDS = ["useyn", "cardname", "address", "phone1", "phone2", "cntctprsn", "repname", "vatregnum", "e_mail", "fax"] as const;
+const EDITABLE_FIELDS = ["useyn", "sido", "sigun", "cardname", "address", "phone1", "phone2", "cntctprsn", "repname"] as const;
 type EditableField = typeof EDITABLE_FIELDS[number];
 
 /** PATCH /api/customers/manage — 단일 거래처 수정 (cardcode는 수정 불가) */

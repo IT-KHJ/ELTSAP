@@ -31,6 +31,8 @@ export default function SalesStatusPageB() {
   const [startDate, setStartDate] = useState(defaultRange.start);
   const [endDate, setEndDate] = useState(defaultRange.end);
   const [salesType, setSalesType] = useState<SalesType>("all");
+  const [sido, setSido] = useState("");
+  const [sigun, setSigun] = useState("");
   const [groupedRows, setGroupedRows] = useState<SalesStatusGroupedRow[]>([]);
   const [sapFetchFailed, setSapFetchFailed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -89,9 +91,10 @@ export default function SalesStatusPageB() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/sales-status-grouped?start=${startDate}&end=${endDate}&salesType=${salesType}`
-      );
+      let url = `/api/sales-status-grouped?start=${startDate}&end=${endDate}&salesType=${salesType}`;
+      if (sido) url += `&sido=${encodeURIComponent(sido)}`;
+      if (sigun) url += `&sigun=${encodeURIComponent(sigun)}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const rows = (data.rows ?? []) as SalesStatusGroupedRow[];
@@ -119,7 +122,7 @@ export default function SalesStatusPageB() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, salesType, modal]);
+  }, [startDate, endDate, salesType, sido, sigun, modal]);
 
   const summary = groupedRows.length > 0 ? computeSummary(groupedRows) : null;
 
@@ -203,6 +206,10 @@ export default function SalesStatusPageB() {
           onEndDateChange={setEndDate}
           salesType={salesType}
           onSalesTypeChange={setSalesType}
+          sido={sido}
+          sigun={sigun}
+          onSidoChange={(v) => { setSido(v); setSigun(""); }}
+          onSigunChange={setSigun}
           onLoad={loadData}
           loading={loading}
           onExcelDownload={handleExcelDownload}

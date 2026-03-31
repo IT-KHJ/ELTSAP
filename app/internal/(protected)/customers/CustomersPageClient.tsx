@@ -2,45 +2,44 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
 
 interface CustomerManageRow {
   cardcode: string;
   useyn: string | null;
+  sido: string | null;
+  sigun: string | null;
   cardname: string | null;
   address: string | null;
   phone1: string | null;
   phone2: string | null;
   cntctprsn: string | null;
   repname: string | null;
-  vatregnum: string | null;
-  e_mail: string | null;
-  fax: string | null;
 }
 
 type EditableField = Exclude<keyof CustomerManageRow, "cardcode">;
 
 const EDITABLE_FIELDS: EditableField[] = [
-  "useyn", "cardname", "address", "phone1", "phone2",
-  "cntctprsn", "repname", "vatregnum", "e_mail", "fax",
+  "useyn", "sido", "sigun", "cardname", "address", "phone1", "phone2",
+  "cntctprsn", "repname",
 ];
 
 const COLUMN_LABELS: Record<keyof CustomerManageRow, string> = {
   cardcode: "거래처코드",
   useyn: "사용",
+  sido: "시/도",
+  sigun: "시/군/구",
   cardname: "거래처명",
   address: "주소",
   phone1: "전화1",
   phone2: "전화2",
   cntctprsn: "담당자",
   repname: "대표자",
-  vatregnum: "사업자번호",
-  e_mail: "이메일",
-  fax: "팩스",
 };
 
 const COLUMN_ORDER: (keyof CustomerManageRow)[] = [
-  "useyn", "cardname", "address", "phone1", "phone2",
-  "cntctprsn", "repname", "vatregnum", "e_mail", "fax", "cardcode",
+  "useyn", "sido", "sigun", "cardname", "address", "phone1", "phone2",
+  "cntctprsn", "repname", "cardcode",
 ];
 
 interface Props {
@@ -55,6 +54,8 @@ export function CustomersPageClient({ initialRows }: Props) {
   const [saveResults, setSaveResults] = useState<Record<string, "ok" | "error">>({});
   const [search, setSearch] = useState("");
   const [useynFilter, setUseynFilter] = useState<"" | "Y" | "N">("Y");
+  const [sidoFilter, setSidoFilter] = useState<string>("");
+  const [sigunFilter, setSigunFilter] = useState<string>("");
 
   // router.refresh() 후 서버 컴포넌트가 새 initialRows를 전달하면 state 동기화
   useEffect(() => {
@@ -65,18 +66,25 @@ export function CustomersPageClient({ initialRows }: Props) {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (useynFilter !== "" && (r.useyn ?? "Y") !== useynFilter) return false;
+      if (sidoFilter !== "" && r.sido !== sidoFilter) return false;
+      if (sigunFilter !== "" && r.sigun !== sigunFilter) return false;
       if (!q) return true;
       return (
         (r.cardcode ?? "").toLowerCase().includes(q) ||
         (r.cardname ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, search, useynFilter]);
+  }, [rows, search, useynFilter, sidoFilter, sigunFilter]);
 
   const handleChange = useCallback(
     (cardcode: string, field: EditableField, value: string) => {
       setRows((prev) =>
-        prev.map((r) => (r.cardcode === cardcode ? { ...r, [field]: value } : r))
+        prev.map((r) => {
+          if (r.cardcode !== cardcode) return r;
+          // sido 변경 시 sigun 자동 초기화
+          if (field === "sido") return { ...r, sido: value, sigun: null };
+          return { ...r, [field]: value };
+        })
       );
       setDirty((prev) => {
         const next = new Set(prev);
@@ -142,7 +150,7 @@ export function CustomersPageClient({ initialRows }: Props) {
         <span className="text-sm text-gray-500">총 {rows.length}개 · 조회 {filteredRows.length}개</span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <select
           value={useynFilter}
           onChange={(e) => setUseynFilter(e.target.value as "" | "Y" | "N")}
@@ -151,6 +159,30 @@ export function CustomersPageClient({ initialRows }: Props) {
           <option value="">전체</option>
           <option value="Y">사용</option>
           <option value="N">중지</option>
+        </select>
+        <select
+          value={sidoFilter}
+          onChange={(e) => {
+            setSidoFilter(e.target.value);
+            setSigunFilter("");
+          }}
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="">시/도 전체</option>
+          {SIDO_LIST.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={sigunFilter}
+          onChange={(e) => setSigunFilter(e.target.value)}
+          disabled={sidoFilter === ""}
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">시/군/구 전체</option>
+          {(sidoFilter ? SIGUN_BY_SIDO[sidoFilter] ?? [] : []).map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </select>
         <input
           type="text"
@@ -183,6 +215,7 @@ export function CustomersPageClient({ initialRows }: Props) {
               const isSaving = saving.has(row.cardcode);
               const isDirty = dirty.has(row.cardcode);
               const result = saveResults[row.cardcode];
+              const sigunOptions = SIGUN_BY_SIDO[row.sido ?? ""] ?? [];
               return (
                 <tr
                   key={row.cardcode}
@@ -201,6 +234,30 @@ export function CustomersPageClient({ initialRows }: Props) {
                         >
                           <option value="Y">Y</option>
                           <option value="N">N</option>
+                        </select>
+                      ) : col === "sido" ? (
+                        <select
+                          value={row.sido ?? ""}
+                          onChange={(e) => handleChange(row.cardcode, "sido", e.target.value)}
+                          disabled={isSaving}
+                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 min-w-[110px]"
+                        >
+                          <option value="">(없음)</option>
+                          {SIDO_LIST.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      ) : col === "sigun" ? (
+                        <select
+                          value={row.sigun ?? ""}
+                          onChange={(e) => handleChange(row.cardcode, "sigun", e.target.value)}
+                          disabled={isSaving || sigunOptions.length === 0}
+                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 min-w-[80px]"
+                        >
+                          <option value="">(없음)</option>
+                          {sigunOptions.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
                         </select>
                       ) : (
                         <input

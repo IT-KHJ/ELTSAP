@@ -46,6 +46,8 @@ function DashboardContent() {
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
   const [searchQuery, setSearchQuery] = useState("전체");
   const [options, setOptions] = useState<CustomerOption[]>([]);
+  const [sido, setSido] = useState("");
+  const [sigun, setSigun] = useState("");
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [ranking, setRanking] = useState<DashboardRankingResponse | null>(null);
@@ -83,7 +85,7 @@ function DashboardContent() {
         const [summaryRes, rankingRes, paretoRes, insightsRes] = await Promise.all([
           fetch(`/api/dashboard/summary?start=${startParam}&end=${endParam}`, fetchOpts),
           fetch(
-            `/api/dashboard/ranking?start=${startParam}&end=${endParam}&sortBy=${sortBy}&order=${order}&page=${page}&limit=10${cardParam ? `&cardcode=${encodeURIComponent(cardParam)}` : ""}`,
+            `/api/dashboard/ranking?start=${startParam}&end=${endParam}&sortBy=${sortBy}&order=${order}&page=${page}&limit=10${cardParam ? `&cardcode=${encodeURIComponent(cardParam)}` : ""}${sido ? `&sido=${encodeURIComponent(sido)}` : ""}${sigun ? `&sigun=${encodeURIComponent(sigun)}` : ""}`,
             fetchOpts
           ),
           fetch(`/api/dashboard/pareto?start=${startParam}&end=${endParam}`, fetchOpts),
@@ -120,6 +122,8 @@ function DashboardContent() {
       endYear,
       endMonth,
       customer?.cardcode,
+      sido,
+      sigun,
       rankingSortBy,
       rankingOrder,
       rankingPage,
@@ -229,6 +233,10 @@ function DashboardContent() {
           }}
           options={options}
           onSearchFocus={() => searchCustomers(searchQuery)}
+          sido={sido}
+          sigun={sigun}
+          onSidoChange={(v) => { setSido(v); setSigun(""); }}
+          onSigunChange={setSigun}
           onLoad={loadDashboard}
           loading={loading}
           hasData={!!summary}

@@ -67,6 +67,8 @@ export interface GetSalesStatusFromOrdersOptions {
   startDate: string;
   endDate: string;
   cardcode?: string | null;
+  sido?: string | null;
+  sigun?: string | null;
   salesType?: "all" | "sales" | "return";
   offset?: number;
   limit?: number;
@@ -79,12 +81,29 @@ export async function getSalesStatusFromOrders(
     startDate,
     endDate,
     cardcode = null,
+    sido = null,
+    sigun = null,
     salesType = "all",
     offset = 0,
     limit = PAGE_SIZE,
   } = options;
 
   const admin = getSupabaseAdmin();
+
+  // sido/sigun 필터: 조건에 맞는 거래처코드 목록 조회
+  let sidoSigunCodes: string[] | null = null;
+  if (sido || sigun) {
+    let custQuery = admin.from("customer").select("cardcode");
+    if (sido) custQuery = custQuery.eq("sido", sido);
+    if (sigun) custQuery = custQuery.eq("sigun", sigun);
+    const { data: matched } = await custQuery;
+    const codes = (matched ?? []).map((c: { cardcode: string }) => c.cardcode);
+    if (codes.length === 0) {
+      return { rows: [], summary: { totalSales: 0, totalReturns: 0, netSales: 0 }, hasMore: false };
+    }
+    sidoSigunCodes = codes;
+  }
+
   const out: SalesStatusRow[] = [];
   let pageOffset = 0;
 
@@ -96,6 +115,10 @@ export async function getSalesStatusFromOrders(
 
   if (cardcode && cardcode.trim()) {
     query = query.ilike("basecard", `%${cardcode.trim()}%`);
+  }
+
+  if (sidoSigunCodes) {
+    query = query.in("basecard", sidoSigunCodes);
   }
 
   if (salesType === "sales") {
@@ -142,9 +165,24 @@ export interface SalesStatusGroupedRow {
 export async function getSalesStatusGroupedFromOrders(
   startDate: string,
   endDate: string,
-  salesType: "all" | "sales" | "return"
+  salesType: "all" | "sales" | "return",
+  sido?: string | null,
+  sigun?: string | null,
 ): Promise<{ rows: SalesStatusGroupedRow[] }> {
   const admin = getSupabaseAdmin();
+
+  // sido/sigun 필터: 조건에 맞는 거래처코드 목록 조회
+  let sidoSigunCodes: string[] | null = null;
+  if (sido || sigun) {
+    let custQuery = admin.from("customer").select("cardcode");
+    if (sido) custQuery = custQuery.eq("sido", sido);
+    if (sigun) custQuery = custQuery.eq("sigun", sigun);
+    const { data: matched } = await custQuery;
+    const codes = (matched ?? []).map((c: { cardcode: string }) => c.cardcode);
+    if (codes.length === 0) return { rows: [] };
+    sidoSigunCodes = codes;
+  }
+
   const out: OrdersRow[] = [];
   let pageOffset = 0;
 
@@ -153,6 +191,10 @@ export async function getSalesStatusGroupedFromOrders(
     .select("basecard, cardname, quantity, totalsumsy, vatamt, returnamt")
     .gte("docdate", `${startDate}T00:00:00.000Z`)
     .lte("docdate", `${endDate}T23:59:59.999Z`);
+
+  if (sidoSigunCodes) {
+    query = query.in("basecard", sidoSigunCodes);
+  }
 
   if (salesType === "sales") {
     query = query.gt("totalsumsy", 0);

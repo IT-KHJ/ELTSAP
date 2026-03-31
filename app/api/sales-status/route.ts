@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get("start")?.trim();
     const end = searchParams.get("end")?.trim();
     const cardcode = searchParams.get("cardcode")?.trim() || null;
+    const sido = searchParams.get("sido")?.trim() || null;
+    const sigun = searchParams.get("sigun")?.trim() || null;
     const salesType = (searchParams.get("salesType") as "all" | "sales" | "return") || "all";
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
@@ -23,6 +25,8 @@ export async function GET(request: NextRequest) {
       startDate: start,
       endDate: end,
       cardcode,
+      sido,
+      sigun,
       salesType,
       offset,
       limit,

@@ -158,13 +158,15 @@ export async function getCustomerRanking(
   endDate: string,
   options: {
     cardcode?: string;
+    sido?: string;
+    sigun?: string;
     sortBy?: "sales" | "netSales" | "returns" | "returnRate" | "orderCount" | "sharePercent" | "cardname" | "aliasname";
     order?: "asc" | "desc";
     page?: number;
     limit?: number;
   } = {}
 ): Promise<{ rows: CustomerRankingRow[]; totalCount: number; page: number; limit: number }> {
-  const { cardcode, sortBy = "sales", order = "desc", page = 1, limit = 10 } = options;
+  const { cardcode, sido, sigun, sortBy = "sales", order = "desc", page = 1, limit = 10 } = options;
 
   const prevYearStart = toLocalDateString(new Date(new Date(startDate).getFullYear() - 1, new Date(startDate).getMonth(), 1));
   const prevYearEnd = toLocalDateString(new Date(new Date(endDate).getFullYear() - 1, new Date(endDate).getMonth() + 1, 0));
@@ -178,6 +180,19 @@ export async function getCustomerRanking(
   ]);
 
   const admin = getSupabaseAdmin();
+
+  // sido/sigun 필터: 집계 결과를 해당 지역 거래처로 한정
+  if (sido || sigun) {
+    let custQuery = admin.from("customer").select("cardcode");
+    if (sido) custQuery = custQuery.eq("sido", sido);
+    if (sigun) custQuery = custQuery.eq("sigun", sigun);
+    const { data: matched } = await custQuery;
+    const matchedSet = new Set((matched ?? []).map((c: { cardcode: string }) => c.cardcode));
+    for (const code of Array.from(curAgg.keys())) {
+      if (!matchedSet.has(code)) curAgg.delete(code);
+    }
+  }
+
   const cardcodes = Array.from(curAgg.keys());
   if (cardcodes.length === 0) {
     return { rows: [], totalCount: 0, page, limit };

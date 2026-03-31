@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
 
 export type CustomerOption = { cardcode: string; cardname: string | null };
 
@@ -19,6 +20,10 @@ interface DashboardFilterProps {
   onCustomerSelect: (c: CustomerOption | null) => void;
   options: CustomerOption[];
   onSearchFocus: () => void;
+  sido: string;
+  sigun: string;
+  onSidoChange: (v: string) => void;
+  onSigunChange: (v: string) => void;
   onLoad: () => void;
   loading: boolean;
   hasData: boolean;
@@ -40,6 +45,10 @@ export function DashboardFilter({
   onCustomerSelect,
   options,
   onSearchFocus,
+  sido,
+  sigun,
+  onSidoChange,
+  onSigunChange,
   onLoad,
   loading,
   hasData,
@@ -77,6 +86,7 @@ export function DashboardFilter({
   };
 
   const displayOptions = [{ cardcode: "__ALL__", cardname: "전체" } as CustomerOption, ...options];
+  const sigunOptions = sido ? (SIGUN_BY_SIDO[sido] ?? []) : [];
 
   return (
     <div className="filter-panel-no-print bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -139,6 +149,32 @@ export function DashboardFilter({
                 ))}
               </ul>
             )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">지역 필터</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={sido}
+                onChange={(e) => onSidoChange(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded text-sm"
+              >
+                <option value="">시/도 전체</option>
+                {SIDO_LIST.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                value={sigun}
+                onChange={(e) => onSigunChange(e.target.value)}
+                disabled={!sido}
+                className="px-3 py-2 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">시/군/구 전체</option>
+                {sigunOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
