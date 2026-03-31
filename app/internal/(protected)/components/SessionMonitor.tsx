@@ -91,10 +91,14 @@ export function SessionMonitor() {
         if (!session) {
           router.push('/internal/login');
         } else {
-          try {
-            await supabase.auth.refreshSession();
-          } catch (error) {
-            console.error('[SessionMonitor] Refresh on visibility failed:', error);
+          const expiresAt = session.expires_at ? session.expires_at * 1000 : null;
+          const shouldRefresh = !expiresAt || (expiresAt - Date.now()) < 10 * 60 * 1000;
+          if (shouldRefresh) {
+            try {
+              await supabase.auth.refreshSession();
+            } catch (error) {
+              console.error('[SessionMonitor] Refresh on visibility failed:', error);
+            }
           }
         }
       }

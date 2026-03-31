@@ -69,11 +69,9 @@ export default function LoginPage() {
             const errorData = await syncResponse.json();
             console.error('Session sync failed:', errorData);
           }
-          await new Promise((resolve) => setTimeout(resolve, 200));
           window.location.href = '/internal';
         } catch (syncError) {
           console.error('Session sync error:', syncError);
-          await new Promise((resolve) => setTimeout(resolve, 200));
           window.location.href = '/internal';
         }
       } else {

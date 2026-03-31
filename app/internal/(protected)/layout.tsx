@@ -56,9 +56,11 @@ export default async function ProtectedLayout({
   if (!auth) redirect('/internal/login');
 
   const { user, isAdmin } = auth;
-  const allowedPaths = await getUserMenuPermissions(user.email ?? '', isAdmin);
+  const [allowedPaths, resolvedDisplayName] = await Promise.all([
+    getUserMenuPermissions(user.email ?? '', isAdmin),
+    getDisplayName(user.email).then((n) => n ?? user.email ?? '사용자'),
+  ]);
   const navItems = getNavItems(allowedPaths);
-  const displayName = await getDisplayName(user.email) ?? user.email ?? '사용자';
 
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') ?? '';
@@ -103,12 +105,12 @@ export default async function ProtectedLayout({
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-blue-600 font-medium text-sm">
-                  {(displayName ?? 'U')[0].toUpperCase()}
+                  {(resolvedDisplayName ?? 'U')[0].toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {displayName}
+                  {resolvedDisplayName}
                 </p>
               </div>
             </div>

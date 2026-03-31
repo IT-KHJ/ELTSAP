@@ -28,19 +28,18 @@ export async function getUserMenuPermissions(email: string, isAdmin: boolean): P
   if (isAdmin) return getAllMenuPaths();
 
   const supabase = await createServerSupabaseClient();
-  const { data: permData, error: permError } = await supabase
+  const { data, error } = await supabase
     .from('user_menu_permissions')
-    .select('menu_id')
+    .select('menus!menu_id(path, sort_order)')
     .eq('email', email.trim());
-  if (permError || !permData?.length) return DEFAULT_PATHS;
+  if (error || !data?.length) return DEFAULT_PATHS;
 
-  const menuIds = permData.map((r) => r.menu_id as string);
-  const { data: menuData, error: menuError } = await supabase
-    .from('menus')
-    .select('path')
-    .in('id', menuIds)
-    .order('sort_order', { ascending: true });
-  if (menuError || !menuData?.length) return DEFAULT_PATHS;
+  type MenuRow = { path: string; sort_order: number | null };
+  const paths = data
+    .flatMap((r) => (r.menus ? [r.menus as unknown as MenuRow] : []))
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((m) => m.path)
+    .filter(Boolean);
 
-  return menuData.map((r) => r.path as string);
+  return paths.length ? paths : DEFAULT_PATHS;
 }

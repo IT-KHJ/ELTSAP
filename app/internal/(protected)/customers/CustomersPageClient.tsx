@@ -56,11 +56,6 @@ export function CustomersPageClient({ initialRows }: Props) {
   const [search, setSearch] = useState("");
   const [useynFilter, setUseynFilter] = useState<"" | "Y" | "N">("Y");
 
-  // 메뉴 진입 시 서버 데이터 새로 조회
-  useEffect(() => {
-    router.refresh();
-  }, [router]);
-
   // router.refresh() 후 서버 컴포넌트가 새 initialRows를 전달하면 state 동기화
   useEffect(() => {
     setRows(initialRows);

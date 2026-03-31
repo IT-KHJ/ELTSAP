@@ -200,7 +200,7 @@ function DashboardContent() {
         .catch(() => setDetailCardcode(null))
         .finally(() => setDetailLoading(false));
     }
-  }, [searchParams, start, end]);
+  }, [searchParams]);
 
   return (
     <div className="dashboard-page">
