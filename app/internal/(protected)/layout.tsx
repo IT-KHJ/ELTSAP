@@ -14,16 +14,16 @@ import { ModalProvider } from '@/lib/components/ModalProvider';
 const NAV_ITEMS = [
   { label: '거래처 관리', href: '/internal/customers', icon: '🏢' },
   { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄' },
-  { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋' },
   { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋' },
+  { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋' },
   { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: '📊' },
   { label: '설정', href: '/internal/sync', icon: '⚙️' },
   { label: '권한 관리', href: '/internal/permissions', icon: '🔐' },
 ] as const;
 
 function getNavItems(allowedPaths: string[]) {
-  const set = new Set(allowedPaths);
-  return NAV_ITEMS.filter((item) => set.has(item.href));
+  const map = new Map(NAV_ITEMS.map((item) => [item.href, item]));
+  return allowedPaths.map((path) => map.get(path)).filter(Boolean) as typeof NAV_ITEMS[number][];
 }
 
 async function getAuthenticatedUser() {
