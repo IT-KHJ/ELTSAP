@@ -54,6 +54,7 @@ export function CustomersPageClient({ initialRows }: Props) {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [saveResults, setSaveResults] = useState<Record<string, "ok" | "error">>({});
   const [search, setSearch] = useState("");
+  const [useynFilter, setUseynFilter] = useState<"" | "Y" | "N">("Y");
 
   // 메뉴 진입 시 서버 데이터 새로 조회
   useEffect(() => {
@@ -67,13 +68,15 @@ export function CustomersPageClient({ initialRows }: Props) {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
+    return rows.filter((r) => {
+      if (useynFilter !== "" && (r.useyn ?? "Y") !== useynFilter) return false;
+      if (!q) return true;
+      return (
         (r.cardcode ?? "").toLowerCase().includes(q) ||
         (r.cardname ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+      );
+    });
+  }, [rows, search, useynFilter]);
 
   const handleChange = useCallback(
     (cardcode: string, field: EditableField, value: string) => {
@@ -144,13 +147,24 @@ export function CustomersPageClient({ initialRows }: Props) {
         <span className="text-sm text-gray-500">총 {rows.length}개 · 조회 {filteredRows.length}개</span>
       </div>
 
-      <input
-        type="text"
-        placeholder="거래처명 또는 거래처코드 검색"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
+      <div className="flex items-center gap-2">
+        <select
+          value={useynFilter}
+          onChange={(e) => setUseynFilter(e.target.value as "" | "Y" | "N")}
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="">전체</option>
+          <option value="Y">사용</option>
+          <option value="N">중지</option>
+        </select>
+        <input
+          type="text"
+          placeholder="거래처명 또는 거래처코드 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
 
       <div className="overflow-x-auto border border-gray-200 rounded-lg">
         <table className="min-w-full text-sm">
