@@ -2,7 +2,7 @@
  * 동기화 메타데이터: 엔티티별 마지막 동기화 시각 및 건수
  */
 
-import { DATE_MIN_SYNC } from "./constants";
+import { getDateMinSync } from "./constants";
 import { getSupabaseAdmin } from "./supabase";
 
 /** last_synced_at UTC 날짜에서 뺀 뒤 SAP 증분 since로 쓰는 일수(겹침 윈도우) */
@@ -13,7 +13,8 @@ export function applyIncrementalLookbackToSinceDate(baseYmd: string): string {
   const d = new Date(`${baseYmd}T12:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() - INCREMENTAL_LOOKBACK_DAYS);
   const ymd = d.toISOString().slice(0, 10);
-  return ymd < DATE_MIN_SYNC ? DATE_MIN_SYNC : ymd;
+  const dateMinSync = getDateMinSync();
+  return ymd < dateMinSync ? dateMinSync : ymd;
 }
 
 export type SyncEntityType = "customer" | "itemlist" | "sales" | "inamt" | "saleetc" | "orders";

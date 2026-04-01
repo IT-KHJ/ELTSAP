@@ -6,7 +6,7 @@
  */
 
 import sql from "mssql";
-import { DATE_MIN_SYNC } from "./constants";
+import { getDateMinSync } from "./constants";
 
 /** 증분 조건: SAP CreateDate/UpdateDate의 날짜 부분만 비교. since는 YYYY-MM-DD */
 function incrementalClause(columnPrefix: string): string {
@@ -228,7 +228,7 @@ export async function querySapSalesDateRange(
 ): Promise<{ minCreateDate: string | null; maxCreateDate: string | null; minUpdateDate: string | null; maxUpdateDate: string | null }> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) req.input("since", sql.VarChar(10), since);
     const incClause = since ? incrementalClause("o") : "";
     const result = await req.query(`
@@ -260,7 +260,7 @@ export async function querySapSalesDateRange(
 export async function querySapSales(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) {
       req.input("since", sql.VarChar(10), since);
     }
@@ -295,7 +295,7 @@ export async function querySapInamtDateRange(
 ): Promise<{ minCreateDate: string | null; maxCreateDate: string | null; minUpdateDate: string | null; maxUpdateDate: string | null }> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) req.input("since", sql.VarChar(10), since);
     const incClause = since ? incrementalClause("") : "";
     const result = await req.query(`
@@ -326,7 +326,7 @@ export async function querySapInamtDateRange(
 export async function querySapInamt(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) {
       req.input("since", sql.VarChar(10), since);
     }
@@ -354,7 +354,7 @@ export async function querySapSaleetcDateRange(
 ): Promise<{ minCreateDate: string | null; maxCreateDate: string | null; minUpdateDate: string | null; maxUpdateDate: string | null }> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) req.input("since", sql.VarChar(10), since);
     const incClause = since ? incrementalClause("o") : "";
     const result = await req.query(`
@@ -388,7 +388,7 @@ export async function querySapOrdersDateRange(
 ): Promise<{ minCreateDate: string | null; maxCreateDate: string | null; minUpdateDate: string | null; maxUpdateDate: string | null }> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) req.input("since", sql.VarChar(10), since);
     const incClause = since ? incrementalClause("o") : "";
     const result = await req.query(`
@@ -421,7 +421,7 @@ export async function querySapOrdersDateRange(
 export async function querySapOrders(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) {
       req.input("since", sql.VarChar(10), since);
     }
@@ -587,7 +587,7 @@ export async function querySapDln1SalesStatusGrouped(
 export async function querySapSaleetc(since?: string | null): Promise<Record<string, unknown>[]> {
   const pool = await getPool();
   try {
-    const req = pool.request().input("minDate", sql.VarChar(10), DATE_MIN_SYNC);
+    const req = pool.request().input("minDate", sql.VarChar(10), getDateMinSync());
     if (since) {
       req.input("since", sql.VarChar(10), since);
     }

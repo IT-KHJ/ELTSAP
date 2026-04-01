@@ -1,6 +1,16 @@
 /** 보고서/동기화 관련 상수 (하드코딩 금지) */
 
-export const DATE_MIN_SYNC = "2024-01-01";
+/** 전체 동기화 기준일: 당월 기준 -2개월 1일 (예: 4월 → 2월 1일) */
+export function getDateMinSync(): string {
+  const now = new Date();
+  let year = now.getUTCFullYear();
+  let month = now.getUTCMonth() + 1 - 2; // 1-based, minus 2
+  if (month <= 0) {
+    month += 12;
+    year -= 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-01`;
+}
 
 /** itmsgrpcod → 보고서 카테고리 */
 export const CATEGORY_BG = "100";
