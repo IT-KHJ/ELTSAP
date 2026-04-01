@@ -5,23 +5,10 @@ import { CustomersPageClient } from "./CustomersPageClient";
 
 export const dynamic = "force-dynamic";
 
-function isAdminUser(user: { email?: string | null; user_metadata?: unknown; app_metadata?: unknown }): boolean {
-  return Boolean(
-    (user.user_metadata as { role?: string } | null)?.role === "admin" ||
-    (user.app_metadata as { role?: string } | null)?.role === "admin" ||
-    (process.env.ADMIN_EMAILS &&
-      user.email &&
-      process.env.ADMIN_EMAILS.split(",")
-        .map((e) => e.trim())
-        .includes(user.email))
-  );
-}
-
 export default async function CustomersPage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/internal/login");
-  if (!isAdminUser(user)) redirect("/internal/unauthorized");
 
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
