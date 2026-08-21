@@ -1,5 +1,20 @@
 # CLAUDE.md
 
+## 세션 시작 규칙 (최우선 실행)
+
+매 세션 시작 시 반드시 다음 파일을 먼저 읽어라:
+1. `CURRENT.md` — 현재 상태 요약 (필수, 항상)
+2. `프로젝트_추적기.md` — 현재 단계 상세 내용 (현재 작업 진행 시에만)
+3. `프로젝트_내용.md` — 프로젝트 전체 설계 (구조/설계 판단이 필요할 때만)
+4. `프로젝트_추적기_아카이브.md` — 1차~47차 완료 이력 (과거 작업 참조 시에만)
+
+작업이 완료될 때마다:
+- `CURRENT.md`의 현재 단계 상태와 즉시 다음 작업 목록 업데이트
+- `프로젝트_추적기.md`의 해당 항목을 `[ ]` / `[x]` / `[~]` 체크박스로 상태 업데이트
+- `프로젝트_내용.md`는 설계 변경 또는 완료 결과물이 생겼을 때만 업데이트
+
+---
+
 ## Core Principles (Highest Priority)
 
 Always follow these rules first.
@@ -39,10 +54,10 @@ If uncertain, default to:
 
 For every task:
 
-1. Understand �� do not assume
-2. Plan �� minimal and scoped
-3. Execute �� small, precise changes
-4. Verify �� mandatory
+1. Understand �� do not assume
+2. Plan �� minimal and scoped
+3. Execute �� small, precise changes
+4. Verify �� mandatory
 
 Never skip steps.
 
@@ -861,7 +876,7 @@ Output:
 
 Raw request:
 
-- �α��� ��ū ���� �� ���� ������ ���� ������
+- �α��� ��ū ���� �� ���� ������ ���� ������
 
 Normalized prompt:
 
@@ -897,7 +912,7 @@ Output:
 
 Raw request:
 
-- ȸ������ �̸��� �Է� ���� �߰�����
+- ȸ������ �̸��� �Է� ���� �߰�����
 
 Normalized prompt:
 
@@ -931,7 +946,7 @@ Output:
 
 Raw request:
 
-- �� ��� �� ��������. ������ �ٲٸ� �� ��
+- �� ��� �� ��������. ������ �ٲٸ� �� ��
 
 Normalized prompt:
 
