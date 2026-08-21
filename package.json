@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "query:supabase": "tsx scripts/query-supabase.ts",
+    "backfill:history": "tsx scripts/backfill-history.ts",
     "sync:orders": "tsx scripts/run-orders-sync.ts",
     "sync:daily": "tsx scripts/run-daily-sync.ts"
   },
