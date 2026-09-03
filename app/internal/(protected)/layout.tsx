@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import Image from 'next/image';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { Building2, FileText, ClipboardList, Table2, LayoutDashboard, Settings, ShieldCheck } from 'lucide-react';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getDisplayName } from '@/lib/user-profiles';
 import { getUserMenuPermissions } from '@/lib/menu-permissions';
@@ -12,13 +13,13 @@ import { LogoutButton } from './components/LogoutButton';
 import { ModalProvider } from '@/lib/components/ModalProvider';
 
 const NAV_ITEMS = [
-  { label: '거래처 관리', href: '/internal/customers', icon: '🏢' },
-  { label: '거래처 현황(마감기준)', href: '/internal/report', icon: '📄' },
-  { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: '📋' },
-  { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: '📋' },
-  { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: '📊' },
-  { label: '설정', href: '/internal/sync', icon: '⚙️' },
-  { label: '권한 관리', href: '/internal/permissions', icon: '🔐' },
+  { label: '거래처 관리', href: '/internal/customers', icon: Building2 },
+  { label: '거래처 현황(마감기준)', href: '/internal/report', icon: FileText },
+  { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: ClipboardList },
+  { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: Table2 },
+  { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: LayoutDashboard },
+  { label: '설정', href: '/internal/sync', icon: Settings },
+  { label: '권한 관리', href: '/internal/permissions', icon: ShieldCheck },
 ] as const;
 
 function getNavItems(allowedPaths: string[]) {
@@ -94,7 +95,7 @@ export default async function ProtectedLayout({
                     href={item.href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                   >
-                    <span className="text-lg">{item.icon}</span>
+                    <item.icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
                     <span className="font-medium">{item.label}</span>
                   </Link>
                 </li>
@@ -103,8 +104,8 @@ export default async function ProtectedLayout({
           </nav>
           <div className="p-4 border-t border-gray-200 shrink-0">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 font-medium text-sm">
+              <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">
+                <span className="text-primary font-medium text-sm">
                   {(resolvedDisplayName ?? 'U')[0].toUpperCase()}
                 </span>
               </div>

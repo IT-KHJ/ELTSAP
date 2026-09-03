@@ -8,7 +8,15 @@ const config: Config = {
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: "#e63929",
+          hover: "#c33022",
+          light: "#fdefed",
+        },
+      },
+    },
   },
   plugins: [],
 };

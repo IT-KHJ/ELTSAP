@@ -113,7 +113,7 @@ export function SalesStatusGrid({ rows, hasMore, loading, onLoadMore }: SalesSta
         className="py-4 flex items-center justify-center bg-gray-50 border-t border-gray-100 min-h-[3rem]"
       >
         {loading && (
-          <span className="text-base font-medium text-blue-600">로딩 중...</span>
+          <span className="text-base font-medium text-primary">로딩 중...</span>
         )}
         {hasMore && !loading && <span className="text-sm text-gray-400">스크롤하여 더 보기</span>}
       </div>

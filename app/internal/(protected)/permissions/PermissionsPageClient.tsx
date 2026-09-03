@@ -153,7 +153,7 @@ export default function PermissionsPageClient() {
           <button
             onClick={handleAddUser}
             disabled={addSaving}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-white text-sm font-medium rounded hover:bg-primary-hover disabled:opacity-50"
           >
             {addSaving ? '추가 중...' : '추가'}
           </button>

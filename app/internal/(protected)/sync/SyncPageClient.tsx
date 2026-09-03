@@ -232,7 +232,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                     type="button"
                     disabled={loading !== null}
                     onClick={() => runSync(label, path, entityType, false)}
-                    className="flex-1 min-w-0 px-2 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    className="flex-1 min-w-0 px-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     {isIncrementalLoading(label) ? "처리 중..." : `${label.replace(" 동기화", "")} (증분)`}
                   </button>
@@ -240,7 +240,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                     type="button"
                     disabled={loading !== null}
                     onClick={() => runSync(label, path, entityType, true)}
-                    className="flex-1 min-w-0 px-2 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    className="flex-1 min-w-0 px-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     {isFullLoading(label) ? "처리 중..." : "(전체)"}
                   </button>
@@ -425,7 +425,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                 onChange={(e) => setMaintenance((m) => ({ ...m, content: e.target.value }))}
                 rows={3}
                 placeholder="예: 시스템 업그레이드 작업"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
@@ -435,7 +435,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                   type="datetime-local"
                   value={maintenance.time_from}
                   onChange={(e) => setMaintenance((m) => ({ ...m, time_from: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
               </div>
               <div className="flex-1 min-w-0">
@@ -444,7 +444,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                   type="datetime-local"
                   value={maintenance.time_to}
                   onChange={(e) => setMaintenance((m) => ({ ...m, time_to: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -453,7 +453,7 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
                 type="button"
                 onClick={saveMaintenance}
                 disabled={maintenanceSaving}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {maintenanceSaving ? "저장 중..." : "저장"}
               </button>

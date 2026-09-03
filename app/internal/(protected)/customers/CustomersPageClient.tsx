@@ -154,7 +154,7 @@ export function CustomersPageClient({ initialRows }: Props) {
         <select
           value={useynFilter}
           onChange={(e) => setUseynFilter(e.target.value as "" | "Y" | "N")}
-          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">전체</option>
           <option value="Y">사용</option>
@@ -166,7 +166,7 @@ export function CustomersPageClient({ initialRows }: Props) {
             setSidoFilter(e.target.value);
             setSigunFilter("");
           }}
-          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">시/도 전체</option>
           {SIDO_LIST.map((s) => (
@@ -177,7 +177,7 @@ export function CustomersPageClient({ initialRows }: Props) {
           value={sigunFilter}
           onChange={(e) => setSigunFilter(e.target.value)}
           disabled={sidoFilter === ""}
-          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value="">시/군/구 전체</option>
           {(sidoFilter ? SIGUN_BY_SIDO[sidoFilter] ?? [] : []).map((s) => (
@@ -189,7 +189,7 @@ export function CustomersPageClient({ initialRows }: Props) {
           placeholder="거래처명 또는 거래처코드 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
 
@@ -230,7 +230,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                           value={row.useyn ?? "Y"}
                           onChange={(e) => handleChange(row.cardcode, "useyn", e.target.value)}
                           disabled={isSaving}
-                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                         >
                           <option value="Y">Y</option>
                           <option value="N">N</option>
@@ -240,7 +240,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                           value={row.sido ?? ""}
                           onChange={(e) => handleChange(row.cardcode, "sido", e.target.value)}
                           disabled={isSaving}
-                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 min-w-[110px]"
+                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 min-w-[110px]"
                         >
                           <option value="">(없음)</option>
                           {SIDO_LIST.map((s) => (
@@ -252,7 +252,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                           value={row.sigun ?? ""}
                           onChange={(e) => handleChange(row.cardcode, "sigun", e.target.value)}
                           disabled={isSaving || sigunOptions.length === 0}
-                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 min-w-[80px]"
+                          className="border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 min-w-[80px]"
                         >
                           <option value="">(없음)</option>
                           {sigunOptions.map((s) => (
@@ -265,7 +265,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                           value={row[col as EditableField] ?? ""}
                           onChange={(e) => handleChange(row.cardcode, col as EditableField, e.target.value)}
                           disabled={isSaving}
-                          className="w-full min-w-[80px] border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                          className="w-full min-w-[80px] border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                         />
                       )}
                     </td>
@@ -275,7 +275,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                       <button
                         onClick={() => handleSave(row.cardcode)}
                         disabled={!isDirty || isSaving}
-                        className="px-2 py-0.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        className="px-2 py-0.5 text-xs rounded bg-primary text-white hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                       >
                         {isSaving ? "저장 중…" : "저장"}
                       </button>

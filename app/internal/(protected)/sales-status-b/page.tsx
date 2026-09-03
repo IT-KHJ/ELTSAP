@@ -229,7 +229,7 @@ export default function SalesStatusPageB() {
       )}
 
       {summary && (
-        <div className="mb-4 flex gap-10 px-5 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+        <div className="mb-4 flex gap-10 px-5 py-3 bg-slate-50 border border-slate-200 rounded-lg">
           <div>
             <span className="text-sm text-gray-600">총 매출</span>
             <span className="ml-2 font-bold">{formatAmount(summary.totalSales)}</span>

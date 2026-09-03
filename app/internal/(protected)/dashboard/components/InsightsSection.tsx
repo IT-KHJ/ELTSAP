@@ -36,7 +36,7 @@ export function InsightsSection({ data, onCustomerClick }: InsightsSectionProps)
                       <button
                         type="button"
                         onClick={() => onCustomerClick?.(r.cardcode)}
-                        className="text-blue-600 hover:underline text-left truncate w-full"
+                        className="text-primary hover:underline text-left truncate w-full"
                         title={r.aliasname ?? r.cardcode}
                       >
                         {r.aliasname ?? r.cardcode}

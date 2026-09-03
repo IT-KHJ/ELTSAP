@@ -16,7 +16,7 @@ export default function UnauthorizedPage() {
         <div className="flex gap-4 justify-center">
           <Link
             href="/internal/login"
-            className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors"
           >
             다시 로그인
           </Link>

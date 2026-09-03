@@ -51,9 +51,9 @@ export default function MaintenancePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900/40 p-4">
-      <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
-        {/* 상단 블루 영역 - NE능률 CI + 타이틀 */}
-        <div className="bg-[#1e40af] px-6 py-8 relative overflow-hidden">
+      <div className="w-full max-w-md rounded-xl overflow-hidden shadow-lg">
+        {/* 상단 CI 영역 - NE능률 CI + 타이틀 */}
+        <div className="bg-primary px-6 py-8 relative overflow-hidden">
           {/* 배경 패턴 (은은한 원형) */}
           <div className="absolute inset-0 opacity-[0.06] pointer-events-none">
             <div className="absolute top-[15%] left-[10%] w-6 h-6 rounded-full border-2 border-white" />
@@ -85,7 +85,7 @@ export default function MaintenancePage() {
         <div className="bg-white px-6 py-6">
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
             </div>
           ) : (
             <>

@@ -182,7 +182,7 @@ export function DashboardFilter({
             type="button"
             onClick={onLoad}
             disabled={loading}
-            className="h-10 px-5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="h-10 px-5 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {loading ? "조회 중..." : "조회"}
           </button>

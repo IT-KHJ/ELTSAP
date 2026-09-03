@@ -146,7 +146,7 @@ export function SalesStatusGridGrouped({
                     <button
                       type="button"
                       onClick={() => onToggleExpand(g.basecard)}
-                      className="text-blue-600 hover:text-blue-800 underline text-sm"
+                      className="text-primary hover:text-primary-hover underline text-sm"
                     >
                       {isExpanded ? "간략히보기" : "자세히보기"}
                     </button>
