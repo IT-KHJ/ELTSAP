@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import { formatAmount } from "@/lib/format";
-import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/sales-status-grouped-queries";
+import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/orders-queries";
 
 const DETAIL_COLUMNS: {
   key: keyof SalesStatusDetailRow;

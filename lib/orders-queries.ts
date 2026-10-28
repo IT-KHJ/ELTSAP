@@ -1,6 +1,7 @@
 /**
- * Supabase orders 테이블 기반 거래처 현황 조회.
- * 판매기준/판매집계 기본 데이터 소스.
+ * 거래처 현황(판매기준/판매집계) 조회.
+ * 데이터: SAP 원본 미러 기반 rpt_delivery_line(취소되지 않은 전체 납품, ELT 부서) / rpt_customer (033_add_rpt_delivery.sql)
+ * 기간 전체 합계·거래처별 합계는 서버 함수(rpt_sales_status_json / rpt_sales_status_grouped)에서 계산.
  */
 
 import { getSupabaseAdmin } from "./supabase";
@@ -93,7 +94,7 @@ export async function getSalesStatusFromOrders(
   // sido/sigun 필터: 조건에 맞는 거래처코드 목록 조회
   let sidoSigunCodes: string[] | null = null;
   if (sido || sigun) {
-    let custQuery = admin.from("customer").select("cardcode");
+    let custQuery = admin.from("rpt_customer").select("cardcode");
     if (sido) custQuery = custQuery.eq("sido", sido);
     if (sigun) custQuery = custQuery.eq("sigun", sigun);
     const { data: matched } = await custQuery;
@@ -104,50 +105,29 @@ export async function getSalesStatusFromOrders(
     sidoSigunCodes = codes;
   }
 
-  const out: SalesStatusRow[] = [];
-  let pageOffset = 0;
+  // 기간 전체 합계 + 요청 페이지(limit + 1행, 다음 페이지 유무 판단용)를 한 번에 조회
+  const { data, error } = await admin.rpc("rpt_sales_status_json", {
+    p_start: startDate,
+    p_end: endDate,
+    p_cardcode: cardcode && cardcode.trim() ? cardcode.trim() : null,
+    p_codes: sidoSigunCodes,
+    p_sales_type: salesType,
+    p_offset: offset,
+    p_limit: limit,
+  });
+  if (error) throw new Error(error.message);
 
-  let query = admin
-    .from("orders")
-    .select("docdate, basecard, cardname, aliasname, itemcode, itemname, price, supply_rate, discount_rate, quantity, totalsumsy, vatamt, returnamt")
-    .gte("docdate", `${startDate}T00:00:00.000Z`)
-    .lte("docdate", `${endDate}T23:59:59.999Z`);
-
-  if (cardcode && cardcode.trim()) {
-    query = query.ilike("basecard", `%${cardcode.trim()}%`);
-  }
-
-  if (sidoSigunCodes) {
-    query = query.in("basecard", sidoSigunCodes);
-  }
-
-  if (salesType === "sales") {
-    query = query.gt("totalsumsy", 0);
-  } else if (salesType === "return") {
-    query = query.lt("totalsumsy", 0);
-  }
-
-  while (true) {
-    const { data } = await query
-      .order("docdate")
-      .order("basecard")
-      .order("itemcode")
-      .range(pageOffset, pageOffset + ORDERS_PAGE_SIZE - 1);
-    const rows = (data ?? []) as OrdersRow[];
-    if (rows.length === 0) break;
-    out.push(...rows.map(mapOrdersRowToSalesStatusRow));
-    if (rows.length < ORDERS_PAGE_SIZE) break;
-    pageOffset += ORDERS_PAGE_SIZE;
-  }
+  const result = (data ?? {}) as { total_sales?: unknown; total_returns?: unknown; net_sales?: unknown; rows?: OrdersRow[] };
+  const pageRows = result.rows ?? [];
 
   const summary: SalesStatusSummary = {
-    totalSales: out.reduce((s, r) => s + (r.salesAmount ?? 0), 0),
-    totalReturns: out.reduce((s, r) => s + (r.returnAmount ?? 0), 0),
-    netSales: out.reduce((s, r) => s + (r.netSales ?? 0), 0),
+    totalSales: toNum(result.total_sales) ?? 0,
+    totalReturns: toNum(result.total_returns) ?? 0,
+    netSales: toNum(result.net_sales) ?? 0,
   };
 
-  const rows = out.slice(offset, offset + limit);
-  const hasMore = out.length > offset + limit;
+  const rows = pageRows.slice(0, limit).map(mapOrdersRowToSalesStatusRow);
+  const hasMore = pageRows.length > limit;
 
   return { rows, summary, hasMore };
 }
@@ -174,7 +154,7 @@ export async function getSalesStatusGroupedFromOrders(
   // sido/sigun 필터: 조건에 맞는 거래처코드 목록 조회
   let sidoSigunCodes: string[] | null = null;
   if (sido || sigun) {
-    let custQuery = admin.from("customer").select("cardcode");
+    let custQuery = admin.from("rpt_customer").select("cardcode");
     if (sido) custQuery = custQuery.eq("sido", sido);
     if (sigun) custQuery = custQuery.eq("sigun", sigun);
     const { data: matched } = await custQuery;
@@ -183,65 +163,26 @@ export async function getSalesStatusGroupedFromOrders(
     sidoSigunCodes = codes;
   }
 
-  const out: OrdersRow[] = [];
-  let pageOffset = 0;
+  // 거래처별 합계는 서버에서 계산 (거래처 수만큼의 행만 반환)
+  const { data, error } = await admin.rpc("rpt_sales_status_grouped", {
+    p_start: startDate,
+    p_end: endDate,
+    p_sales_type: salesType,
+    p_codes: sidoSigunCodes,
+  });
+  if (error) throw new Error(error.message);
 
-  let query = admin
-    .from("orders")
-    .select("basecard, cardname, quantity, totalsumsy, vatamt, returnamt")
-    .gte("docdate", `${startDate}T00:00:00.000Z`)
-    .lte("docdate", `${endDate}T23:59:59.999Z`);
-
-  if (sidoSigunCodes) {
-    query = query.in("basecard", sidoSigunCodes);
-  }
-
-  if (salesType === "sales") {
-    query = query.gt("totalsumsy", 0);
-  } else if (salesType === "return") {
-    query = query.lt("totalsumsy", 0);
-  }
-
-  while (true) {
-    const { data } = await query.order("basecard").range(pageOffset, pageOffset + ORDERS_PAGE_SIZE - 1);
-    const rows = (data ?? []) as OrdersRow[];
-    if (rows.length === 0) break;
-    out.push(...rows);
-    if (rows.length < ORDERS_PAGE_SIZE) break;
-    pageOffset += ORDERS_PAGE_SIZE;
-  }
-
-  const grouped = new Map<string, SalesStatusGroupedRow>();
-  for (const r of out) {
-    const key = toStr(r.basecard) ?? "";
-    if (!key) continue;
-    const existing = grouped.get(key);
-    const qty = toNum(r.quantity) ?? 0;
-    const totalsumsy = toNum(r.totalsumsy) ?? 0;
-    const vatamt = toNum(r.vatamt) ?? 0;
-    const returnamt = toNum(r.returnamt) ?? 0;
-    if (existing) {
-      existing.quantity += qty;
-      existing.salesAmount += totalsumsy;
-      existing.vatAmount += vatamt;
-      existing.totalAmount += totalsumsy + vatamt;
-      existing.returnAmount += returnamt;
-    } else {
-      grouped.set(key, {
-        basecard: key,
-        cardname: toStr(r.cardname),
-        quantity: qty,
-        salesAmount: totalsumsy,
-        vatAmount: vatamt,
-        totalAmount: totalsumsy + vatamt,
-        returnAmount: returnamt,
-      });
-    }
-  }
-
-  const rows = Array.from(grouped.values()).sort((a, b) =>
-    (a.basecard || "").localeCompare(b.basecard || "")
-  );
+  const rows: SalesStatusGroupedRow[] = ((data ?? []) as Array<Record<string, unknown>>)
+    .map((r) => ({
+      basecard: toStr(r.basecard) ?? "",
+      cardname: toStr(r.cardname),
+      quantity: toNum(r.quantity) ?? 0,
+      salesAmount: toNum(r.sales_amount) ?? 0,
+      vatAmount: toNum(r.vat_amount) ?? 0,
+      totalAmount: toNum(r.total_amount) ?? 0,
+      returnAmount: toNum(r.return_amount) ?? 0,
+    }))
+    .sort((a, b) => (a.basecard || "").localeCompare(b.basecard || ""));
 
   return { rows };
 }
@@ -274,10 +215,10 @@ export async function getSalesStatusDetailFromOrders(
   let pageOffset = 0;
 
   let query = admin
-    .from("orders")
+    .from("rpt_delivery_line")
     .select("docdate, basecard, cardname, itemcode, itemname, price, supply_rate, discount_rate, quantity, totalsumsy, vatamt, returnamt")
-    .gte("docdate", `${startDate}T00:00:00.000Z`)
-    .lte("docdate", `${endDate}T23:59:59.999Z`)
+    .gte("docdate", startDate)
+    .lte("docdate", endDate)
     .ilike("basecard", cardcode);
 
   if (salesType === "sales") {
@@ -290,6 +231,8 @@ export async function getSalesStatusDetailFromOrders(
     const { data } = await query
       .order("docdate")
       .order("itemcode")
+      .order("docentry")
+      .order("linenum")
       .range(pageOffset, pageOffset + ORDERS_PAGE_SIZE - 1);
     const rows = (data ?? []) as OrdersRow[];
     if (rows.length === 0) break;

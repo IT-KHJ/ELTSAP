@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import Image from 'next/image';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Building2, FileText, ClipboardList, Table2, LayoutDashboard, Settings, ShieldCheck } from 'lucide-react';
+import { Building2, FileText, ClipboardList, Table2, LayoutDashboard, BookOpen, Settings, ShieldCheck } from 'lucide-react';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getDisplayName } from '@/lib/user-profiles';
 import { getUserMenuPermissions } from '@/lib/menu-permissions';
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { label: '거래처 현황(판매집계)', href: '/internal/sales-status-b', icon: ClipboardList },
   { label: '거래처 현황(판매기준)', href: '/internal/sales-status', icon: Table2 },
   { label: '거래처 매출 대시보드', href: '/internal/dashboard', icon: LayoutDashboard },
+  { label: '거래처 거래원장', href: '/internal/ledger', icon: BookOpen },
   { label: '설정', href: '/internal/sync', icon: Settings },
   { label: '권한 관리', href: '/internal/permissions', icon: ShieldCheck },
 ] as const;

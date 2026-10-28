@@ -14,7 +14,7 @@ export async function getAllMenuPaths(): Promise<string[]> {
     .from('menus')
     .select('path')
     .order('sort_order', { ascending: true });
-  if (error || !data?.length) return [...DEFAULT_PATHS, '/internal/sales-status', '/internal/sales-status-b', '/internal/sync', '/internal/permissions'];
+  if (error || !data?.length) return [...DEFAULT_PATHS, '/internal/sales-status', '/internal/sales-status-b', '/internal/ledger', '/internal/sync', '/internal/permissions'];
   return data.map((r) => r.path as string);
 }
 

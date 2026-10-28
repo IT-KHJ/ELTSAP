@@ -15,7 +15,7 @@ function isAdminUser(user: { email?: string | null; user_metadata?: unknown; app
   );
 }
 
-/** GET /api/customers/manage — 거래처 관리 화면 전용 전체 조회 (useyn 무관) */
+/** GET /api/customers/manage — 거래처 관리 화면 전용 전체 조회 (useyn 무관). 목록·거래처 정보는 SAP 거래처(rpt_customer) 기준 */
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();
@@ -25,7 +25,7 @@ export async function GET() {
 
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
-      .from("customer")
+      .from("rpt_customer")
       .select("cardcode, useyn, sido, sigun, cardname, address, phone1, phone2, cntctprsn, repname")
       .order("cardname");
 
@@ -37,10 +37,11 @@ export async function GET() {
   }
 }
 
-const EDITABLE_FIELDS = ["useyn", "sido", "sigun", "cardname", "address", "phone1", "phone2", "cntctprsn", "repname"] as const;
+/** 앱에서 관리하는 값만 수정 가능. 거래처명/주소/전화 등은 SAP 값을 표시만 함 */
+const EDITABLE_FIELDS = ["useyn", "sido", "sigun"] as const;
 type EditableField = typeof EDITABLE_FIELDS[number];
 
-/** PATCH /api/customers/manage — 단일 거래처 수정 (cardcode는 수정 불가) */
+/** PATCH /api/customers/manage — 단일 거래처 수정 (cardcode는 수정 불가). customer 행이 없는 새 거래처는 행을 만들어 저장 */
 export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -69,8 +70,7 @@ export async function PATCH(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const { error } = await admin
       .from("customer")
-      .update(updates)
-      .eq("cardcode", cardcode);
+      .upsert({ cardcode, ...updates }, { onConflict: "cardcode" });
 
     if (error) throw error;
     return NextResponse.json({ ok: true });

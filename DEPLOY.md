@@ -30,9 +30,8 @@
 
    - `NEXT_PUBLIC_SUPABASE_URL` — Supabase 프로젝트 URL  
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key  
-   - (선택) `SAP_SQL_SERVER`, `SAP_SQL_DATABASE`, `SAP_SQL_USER`, `SAP_SQL_PASSWORD` — SAP 직접 연동 시  
-   - (선택) `SYNC_ITEMLIST_URL`, `SYNC_SALES_URL` 등 — 외부 동기화 API 사용 시  
-   - (선택) `CRON_SECRET` — 자동 동기화 Cron(매일 일괄·매시) 호출 시 Bearer 검증용. 16자 이상 권장. 미설정 시 Cron 인증 생략.
+   - `SUPABASE_SERVICE_ROLE_KEY` — 서버 조회용(리포트·관리 화면)  
+   - SAP 접속 정보(`SAP_SQL_*`)는 Vercel에 필요 없음 — SAP 동기화는 로컬 PC에서만 실행(4절)
 
    Production / Preview / Development 중 필요한 환경에 체크 후 저장.
 
@@ -75,47 +74,30 @@
 
 - Vercel에서 제공하는 URL(예: `https://eltsap-xxx.vercel.app`)로 접속  
 - `/internal/login` 로그인 및 내부 페이지 동작 확인  
-- Supabase 연결 및 보고서/동기화 API 정상 동작 여부 확인  
+- Supabase 연결 및 보고서 API, 설정 화면의 SAP 동기화 상태 표시 확인  
 
 ---
 
-## 4. 로컬 자동 동기화 (localhost)
+## 4. SAP 동기화 (로컬 PC 작업 스케줄러)
 
-Vercel에서는 방화벽 등으로 SAP 연결이 어려울 수 있으므로, **localhost에서 실행 중인 앱**을 기준으로 동기화를 스케줄 실행합니다.
+Vercel에서는 방화벽 등으로 SAP 연결이 어려우므로 SAP 접속이 되는 PC에서 동기화를 스케줄 실행한다. 기존 앱 경유 동기화(`/api/sync/*`, `/api/cron/*`, `sync:daily`·`sync:orders`)는 2026-10-28 SAP 원본 미러로 대체되어 삭제됨.
 
-### 사전 조건
+### SAP 원본 미러 동기화 (`sap_*` 테이블)
 
-- `npm run start`로 Next.js 앱이 localhost에서 실행 중
-- `.env.local`에 `CRON_SECRET`, `PORT`(기본 3000) 설정
-- SAP 접속 가능한 네트워크(방화벽 이슈 회피)
+Next.js 앱 실행 없이 `scripts/sap-mirror/sync.ts`를 직접 실행한다. 회사 DBSafer 세션이 끊기면 SAP 접속이 불가하므로 **평일 업무 시간(세션 재접속 9:30~10:00 이후)**에만 실행한다.
 
-### 스크립트
+| 작업 이름 | 모드 | 일정 |
+|---|---|---|
+| `SAP미러_매시간` | hourly (신규 문서 + 최근 31일 변경분) | 평일 10:10~18:10 매시 |
+| `SAP미러_매일` | daily (최근 400일 변경분 + 마스터 + 신규 ELT 거래처 + 최근 3개월 대사) | 평일 12:30 |
+| `SAP미러_매주` | weekly (전체 기간 변경분 + 마스터 전체 정리 + 최근 3개월 대사) | 금 16:30 |
 
-| 스크립트 | 대상 | 실행 |
-|---------|------|------|
-| `npm run sync:orders` | 입금·기타출고·매출·판매(증분) | 매시간 |
-| `npm run sync:daily` | 거래처·품목·입금·기타출고·매출·판매 전 단계 전체 | 매일 오전 9시(예시) |
+- 전체 기간 대사는 자동 실행하지 않음(SAP 디스크 부하). 필요 시 수동: `npx tsx scripts/sap-mirror/sync.ts recon --full` (거래처 1곳씩 나눠 조회)
 
-### Windows 작업 스케줄러 예시
-
-1. **작업 스케줄러** 실행 → **기본 작업 만들기**
-2. **매시 정각 (판매 동기화)**  
-   - 프로그램: `cmd.exe`  
-   - 인수: `/c cd /d D:\projects\eltsap && npm run sync:orders`  
-   - 시작 위치: `D:\projects\eltsap`  
-   - 트리거: 매시 0분 반복
-3. **매일 일괄 동기화 (예: 오전 9시)**  
-   - 프로그램: `cmd.exe`  
-   - 인수: `/c cd /d D:\projects\eltsap && npm run sync:daily`  
-   - 시작 위치: `D:\projects\eltsap`  
-   - 트리거: 매일 원하는 시각(예: 오전 9:00)
-
-경로 `D:\projects\eltsap`는 실제 프로젝트 경로로 변경하세요.
-
-### 결과
-
-- 설정 화면 점검 정보 영역 우측에 표시 (매일 9시 일괄·매시 증분 이력)
-- `supabase/migrations/012_add_daily_auto_sync_results.sql`, `017_add_orders_count_to_daily_auto_sync.sql`, `018_daily_and_hourly_sync_history.sql` 적용 필요
+- 실행: `conhost.exe --headless cmd.exe /c D:\projects\eltsap\scripts\sap-mirror\run-scheduled.cmd <모드>` (창 없이 실행, "사용자가 로그온할 때만")
+- 로그: `%LOCALAPPDATA%\eltsap-sap-mirror\<모드>.log`, 실행 이력: Supabase `sap_mirror_runs` (설정 화면 "SAP 동기화 상태"에 표시)
+- 종료 코드: 0 성공, 1 실패, 2 SAP 접속 불가(DBSafer 세션 만료·연차 등 → 다음 실행에서 이어서 처리), 3 다른 실행 진행 중(건너뜀), 4 SAP 부하 감지로 중단(쿼리 30초 초과/응답 없음), 5 부하 정지(HALT) 상태 — 원인 확인 후 `--clear-halt`로 해제해야 재개
+- 수동 실행/초기 적재: `npx tsx scripts/sap-mirror/sync.ts <init|hourly|daily|weekly|recon|reload>` — 장시간 작업은 PowerShell `Start-Process`로 실행(Git Bash 백그라운드 실행 시 중복 실행 발생 사례 있음)
 
 ---
 

@@ -1,6 +1,7 @@
 /**
  * 거래처 매출 대시보드용 집계.
  * 기존 report-queries와 완전 분리. Supabase 읽기 전용.
+ * 데이터: SAP 원본 미러 기반 rpt_sales_line(송장 - 대변메모, ELT 부서) / rpt_customer (030_add_rpt_sales.sql)
  * - 총매출: totalsumsy > 0 합계
  * - 총반품: totalsumsy < 0 합계 (마이너스 표기)
  * - 순매출: 총매출 + 총반품(음수)
@@ -78,7 +79,7 @@ async function fetchSalesByBasecardFromRpc(
   cardcodeFilter?: string
 ): Promise<Map<string, CardAggregate>> {
   const admin = getSupabaseAdmin();
-  const { data } = await admin.rpc("get_sales_by_basecard", {
+  const { data } = await admin.rpc("rpt_sales_by_basecard", {
     p_start: startDate,
     p_end: endDate,
     p_basecard: cardcodeFilter?.trim() || null,
@@ -115,7 +116,7 @@ export async function getDashboardSummary(
   const admin = getSupabaseAdmin();
 
   const [aggResult, cardAgg] = await Promise.all([
-    admin.rpc("get_dashboard_sales_agg", { p_start: startDate, p_end: endDate, p_basecard: null }),
+    admin.rpc("rpt_dashboard_sales_agg", { p_start: startDate, p_end: endDate, p_basecard: null }),
     fetchSalesByBasecardFromRpc(startDate, endDate),
   ]);
 
@@ -133,7 +134,7 @@ export async function getDashboardSummary(
   const prevYearStart = toLocalDateString(new Date(new Date(startDate).getFullYear() - 1, new Date(startDate).getMonth(), 1));
   const prevYearEnd = toLocalDateString(new Date(new Date(endDate).getFullYear() - 1, new Date(endDate).getMonth() + 1, 0));
 
-  const prevYearRes = await admin.rpc("get_dashboard_sales_agg", { p_start: prevYearStart, p_end: prevYearEnd, p_basecard: null });
+  const prevYearRes = await admin.rpc("rpt_dashboard_sales_agg", { p_start: prevYearStart, p_end: prevYearEnd, p_basecard: null });
   const prevYearRow = (prevYearRes.data as { total_sales: number; total_returns: number }[] | null)?.[0];
   const prevYearNet = (Number(prevYearRow?.total_sales ?? 0) || 0) + (Number(prevYearRow?.total_returns ?? 0) || 0);
 
@@ -183,7 +184,7 @@ export async function getCustomerRanking(
 
   // sido/sigun 필터: 집계 결과를 해당 지역 거래처로 한정
   if (sido || sigun) {
-    let custQuery = admin.from("customer").select("cardcode");
+    let custQuery = admin.from("rpt_customer").select("cardcode");
     if (sido) custQuery = custQuery.eq("sido", sido);
     if (sigun) custQuery = custQuery.eq("sigun", sigun);
     const { data: matched } = await custQuery;
@@ -201,7 +202,7 @@ export async function getCustomerRanking(
   const nameMap: Record<string, { cardname: string | null; aliasname: string | null }> = {};
   for (let i = 0; i < cardcodes.length; i += 500) {
     const chunk = cardcodes.slice(i, i + 500);
-    const { data } = await admin.from("customer").select("cardcode, cardname, aliasname").eq("useyn", "Y").in("cardcode", chunk);
+    const { data } = await admin.from("rpt_customer").select("cardcode, cardname, aliasname").in("cardcode", chunk);
     (data ?? []).forEach((r: { cardcode: string; cardname: string | null; aliasname: string | null }) => {
       nameMap[r.cardcode] = { cardname: r.cardname, aliasname: r.aliasname };
     });
@@ -272,12 +273,14 @@ async function fetchSalesWithItems(cardcode: string, startDate: string, endDate:
   const endExclusive = addDay(endDate);
   while (true) {
     const { data } = await admin
-      .from("sales")
+      .from("rpt_sales_line")
       .select("basecard, docdate, totalsumsy, itemcode, quantity")
       .eq("basecard", cardcode)
-      .or("linestatus.eq.O,linestatus.is.null")
       .gte("docdate", startDate)
       .lt("docdate", endExclusive)
+      .order("source")
+      .order("docentry")
+      .order("linenum")
       .range(offset, offset + SALES_PAGE_SIZE - 1);
     const rows = (data ?? []) as SalesRowWithItem[];
     out.push(...rows);
@@ -305,7 +308,7 @@ export async function getCustomerDetail(
   const admin = getSupabaseAdmin();
 
   const [monthlyRpc, rows] = await Promise.all([
-    admin.rpc("get_customer_detail_monthly", {
+    admin.rpc("rpt_customer_detail_monthly", {
       p_basecard: cardcode,
       p_start: startDate,
       p_end: endDate,
@@ -348,7 +351,7 @@ export async function getCustomerDetail(
     const arr = Array.from(allItemCodes);
     for (let i = 0; i < arr.length; i += 500) {
       const chunk = arr.slice(i, i + 500);
-      const { data } = await admin.from("itemlist").select("itemcode, itemname").in("itemcode", chunk);
+      const { data } = await admin.from("sap_oitm").select("itemcode, itemname").in("itemcode", chunk);
       (data ?? []).forEach((r: { itemcode: string; itemname: string | null }) => {
         itemNames[r.itemcode] = r.itemname;
       });
@@ -375,7 +378,7 @@ export async function getCustomerDetail(
     .sort((a, b) => a.returns - b.returns)
     .slice(0, 30);
 
-  const { data: cust } = await admin.from("customer").select("cardname").eq("useyn", "Y").eq("cardcode", cardcode).maybeSingle();
+  const { data: cust } = await admin.from("rpt_customer").select("cardname").eq("cardcode", cardcode).maybeSingle();
   const cardname = (cust as { cardname?: string } | null)?.cardname ?? null;
 
   return { monthly, itemSales, itemReturns, cardname };
@@ -394,7 +397,7 @@ export async function getParetoData(
   if (cardcodes.length > 0) {
     for (let i = 0; i < cardcodes.length; i += 500) {
       const chunk = cardcodes.slice(i, i + 500);
-      const { data } = await admin.from("customer").select("cardcode, aliasname").eq("useyn", "Y").in("cardcode", chunk);
+      const { data } = await admin.from("rpt_customer").select("cardcode, aliasname").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });
@@ -445,7 +448,7 @@ export async function getDashboardInsights(
     const arr = Array.from(allCards);
     for (let i = 0; i < arr.length; i += 500) {
       const chunk = arr.slice(i, i + 500);
-      const { data } = await admin.from("customer").select("cardcode, aliasname").eq("useyn", "Y").in("cardcode", chunk);
+      const { data } = await admin.from("rpt_customer").select("cardcode, aliasname").in("cardcode", chunk);
       (data ?? []).forEach((r: { cardcode: string; aliasname: string | null }) => {
         aliasMap[r.cardcode] = r.aliasname;
       });

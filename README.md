@@ -10,13 +10,12 @@ Next.js (App Router) + TypeScript + Supabase 기반. SAP 데이터는 Supabase�
 ## 설정
 
 1. `.env.local`에 Supabase URL 및 키 입력
-2. **SAP SQL Server 직접 동기화** (권장, neelt 백엔드와 동일한 방식): `.env.local`에 아래 변수 설정
+2. **SAP SQL Server 접속 정보** (SAP 원본 미러 동기화용, neelt 백엔드와 동일한 방식): `.env.local`에 아래 변수 설정
    - `SAP_SQL_SERVER` — 호스트 또는 `호스트\인스턴스` (예: `MYPC\SQLEXPRESS`). `\` 있으면 Named Instance로 접속(port 미사용)
    - `SAP_SQL_DATABASE` — DB 이름
    - `SAP_SQL_USER` / `SAP_SQL_PASSWORD` — 로그인
    - (선택) `SAP_SQL_PORT` — 기본 1433. 인스턴스 사용 시 생략
    - (선택) `SAP_SQL_TRUST_CERT=false` — 자체 서명 인증서 허용은 기본 **true** (neelt와 동일하게 로컬/내부 서버 연동 용이)
-3. (대안) 동기화 소스 URL: SAP 미설정 시 `SYNC_*_URL`에서 JSON을 가져와 UPSERT
 
 ## DB 마이그레이션
 
@@ -29,17 +28,12 @@ npm install
 npm run dev
 ```
 
-- 대시보드: `/`
-- 거래처 현황 보고서: `/report` (기간·거래처 선택 후 조회, 인쇄 시 A4 가로 1페이지)
-- 동기화: `/sync` (거래처/품목/매출/입금/기타출고 개별 버튼)
+- 메뉴: 거래처 현황(마감기준 `/internal/report`, 판매집계 `/internal/sales-status-b`, 판매기준 `/internal/sales-status`), 거래처 매출 대시보드, 거래처 거래원장, 거래처 관리, 설정(SAP 동기화 상태·점검 정보)
 
 ## 동기화 방식
 
-- **GET** `/api/sync/customer/run`, … `/api/sync/saleetc/run` (동기화 페이지 버튼)
-  1. **SAP SQL Server 설정 시**: SAP DB에 직접 접속해 SELECT(읽기 전용) 후 Supabase UPSERT
-  2. **미설정 시**: `SYNC_*_URL`에서 JSON을 가져와 UPSERT
-- **POST** `/api/sync/customer`, … `/api/sync/saleetc`  
-  body: `{ "data": [ ... ] }` → Supabase UPSERT만 (외부 ETL 등에서 호출용)
+- SAP 원본 테이블(ELT 거래처)을 Supabase `sap_*` 테이블에 그대로 적재·동기화하고(`scripts/sap-mirror/`), 리포트는 리포트별 SQL 뷰/함수(`rpt_*`)로 계산한다. 실행·일정은 `DEPLOY.md` 4절 참조.
+- 설정 화면에서는 동기화 결과만 조회한다(수동 실행 버튼 없음).
 
 ## 인쇄
 

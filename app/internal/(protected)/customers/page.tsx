@@ -12,7 +12,7 @@ export default async function CustomersPage() {
 
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
-    .from("customer")
+    .from("rpt_customer")
     .select("cardcode, useyn, sido, sigun, cardname, address, phone1, phone2, cntctprsn, repname")
     .order("cardname");
 

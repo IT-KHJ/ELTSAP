@@ -5,7 +5,7 @@ import { useModal } from "@/lib/components/ModalProvider";
 import { SalesStatusFilterB, type SalesType } from "./components/SalesStatusFilterB";
 import { SalesStatusGridGrouped } from "./components/SalesStatusGridGrouped";
 import { formatAmount } from "@/lib/format";
-import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/sales-status-grouped-queries";
+import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/orders-queries";
 import { buildSalesStatusGroupedExcel } from "@/lib/sales-status-grouped-excel";
 
 function getDefaultDateRange() {

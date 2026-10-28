@@ -3,7 +3,7 @@
  */
 
 import ExcelJS from "exceljs";
-import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/sales-status-grouped-queries";
+import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/orders-queries";
 import { formatAmount } from "@/lib/format";
 
 const BASE_FONT = { name: "맑은 고딕", size: 10 };

@@ -17,12 +17,10 @@ interface CustomerManageRow {
   repname: string | null;
 }
 
-type EditableField = Exclude<keyof CustomerManageRow, "cardcode">;
+/** 앱에서 관리하는 값만 수정 가능. 나머지(거래처명/주소/전화 등)는 SAP 값을 표시만 함 */
+type EditableField = "useyn" | "sido" | "sigun";
 
-const EDITABLE_FIELDS: EditableField[] = [
-  "useyn", "sido", "sigun", "cardname", "address", "phone1", "phone2",
-  "cntctprsn", "repname",
-];
+const EDITABLE_FIELDS: EditableField[] = ["useyn", "sido", "sigun"];
 
 const COLUMN_LABELS: Record<keyof CustomerManageRow, string> = {
   cardcode: "거래처코드",
@@ -260,13 +258,7 @@ export function CustomersPageClient({ initialRows }: Props) {
                           ))}
                         </select>
                       ) : (
-                        <input
-                          type="text"
-                          value={row[col as EditableField] ?? ""}
-                          onChange={(e) => handleChange(row.cardcode, col as EditableField, e.target.value)}
-                          disabled={isSaving}
-                          className="w-full min-w-[80px] border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                        />
+                        <span className="text-gray-700">{row[col] ?? ""}</span>
                       )}
                     </td>
                   ))}

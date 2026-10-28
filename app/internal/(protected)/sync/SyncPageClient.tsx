@@ -1,22 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import type { MirrorStatus, MirrorRun } from "@/lib/mirror-status";
 
-export interface SyncMetadata {
-  entity_type: string;
-  last_synced_at: string;
-  inserted_count: number;
-  updated_count: number;
-  total_count: number;
-}
-
-const SYNC_ITEMS = [
-  { label: "거래처 동기화", path: "/api/sync/customer/run", entityType: "customer" },
-  { label: "품목 동기화", path: "/api/sync/itemlist/run", entityType: "itemlist" },
-  { label: "매출 동기화", path: "/api/sync/sales/run", entityType: "sales" },
-  { label: "입금 동기화", path: "/api/sync/inamt/run", entityType: "inamt" },
-  { label: "기타출고 동기화", path: "/api/sync/saleetc/run", entityType: "saleetc" },
-  { label: "판매 동기화", path: "/api/sync/orders/run", entityType: "orders" },
+const MODE_ITEMS = [
+  { mode: "hourly", label: "매시간", schedule: "평일 10:10~18:10, 1시간 간격" },
+  { mode: "daily", label: "매일", schedule: "평일 12:30 (마스터 변경분·최근 대사 포함)" },
+  { mode: "weekly", label: "매주", schedule: "금요일 16:30 (전체 점검)" },
+  { mode: "recon", label: "대사", schedule: "매일/매주 실행에 포함, 전체 기간은 수동" },
 ] as const;
 
 function formatSyncDate(iso: string | null): string {
@@ -35,22 +27,36 @@ function formatSyncDate(iso: string | null): string {
   }
 }
 
-/** 반영 건수: 마지막 동기화 당시 건수 (inserted + updated) */
-function formatLastSyncCount(m: SyncMetadata | undefined): string {
-  if (!m) return "-";
-  const n = m.inserted_count + m.updated_count;
-  return n.toLocaleString();
+function statusLabel(status: string): string {
+  switch (status) {
+    case "success":
+      return "성공";
+    case "running":
+      return "실행 중";
+    case "failed":
+      return "실패";
+    case "sap_unavailable":
+      return "SAP 접속 불가";
+    case "sap_overload":
+      return "SAP 부하 감지(정지)";
+    default:
+      return status;
+  }
 }
 
-/** 합계 건수: 누적 데이터 건수 */
-function formatTotalCount(count: number | undefined): string {
-  if (count == null) return "-";
-  return count.toLocaleString();
+function statusClass(status: string): string {
+  if (status === "success") return "text-green-600";
+  if (status === "running") return "text-blue-600";
+  if (status === "sap_unavailable") return "text-amber-600";
+  return "text-red-600";
+}
+
+function modeLabel(mode: string): string {
+  return MODE_ITEMS.find((m) => m.mode === mode)?.label ?? mode;
 }
 
 interface Props {
-  initialMetadata: Record<string, SyncMetadata>;
-  initialTableCounts: Record<string, number>;
+  mirrorStatus: MirrorStatus | null;
 }
 
 interface MaintenanceForm {
@@ -59,39 +65,11 @@ interface MaintenanceForm {
   time_to: string;
 }
 
-export default function SyncPageClient({ initialMetadata, initialTableCounts }: Props) {
-  const [loading, setLoading] = useState<string | null>(null);
-  const [progress, setProgress] = useState<number>(0);
-  const [result, setResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
-  const [metadata, setMetadata] = useState<Record<string, SyncMetadata>>(initialMetadata);
-  const [tableCounts, setTableCounts] = useState<Record<string, number>>(initialTableCounts);
+export default function SyncPageClient({ mirrorStatus }: Props) {
+  const router = useRouter();
   const [maintenance, setMaintenance] = useState<MaintenanceForm>({ content: "", time_from: "", time_to: "" });
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [dailyBatchHistory, setDailyBatchHistory] = useState<
-    Array<{
-      sync_date: string;
-      customer_count: number;
-      itemlist_count: number;
-      inamt_count: number;
-      saleetc_count: number;
-      sales_count: number;
-      orders_count: number;
-      completed_at: string | null;
-      status: string;
-    }>
-  >([]);
-  const [hourlyHistory, setHourlyHistory] = useState<
-    Array<{
-      id: string;
-      completed_at: string;
-      inamt_count: number;
-      saleetc_count: number;
-      sales_count: number;
-      orders_count: number;
-      status: string;
-    }>
-  >([]);
 
   function toDatetimeLocal(iso: string | null): string {
     if (!iso) return "";
@@ -114,23 +92,6 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
           time_from: toDatetimeLocal(json.time_from),
           time_to: toDatetimeLocal(json.time_to),
         });
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/sync/daily-auto-results?limit=5")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json && typeof json === "object" && !json.error) {
-          if (Array.isArray(json.daily) && Array.isArray(json.hourly)) {
-            setDailyBatchHistory(json.daily);
-            setHourlyHistory(json.hourly);
-          } else if (Array.isArray(json.results)) {
-            setDailyBatchHistory(json.results);
-            setHourlyHistory([]);
-          }
-        }
       })
       .catch(() => {});
   }, []);
@@ -158,313 +119,173 @@ export default function SyncPageClient({ initialMetadata, initialTableCounts }: 
     }
   };
 
-  const runSync = async (label: string, path: string, entityType: string, full: boolean) => {
-    const loadingKey = full ? `${label}-full` : label;
-    setLoading(loadingKey);
-    setProgress(0);
-    setResult((r) => ({ ...r, [label]: { ok: false, msg: "진행 중..." } }));
-    try {
-      const url = full ? `${path}${path.includes("?") ? "&" : "?"}full=1` : path;
-      const res = await fetch(url, { method: "GET" });
-      const data = await res.json().catch(() => ({}));
-      const ok = res.ok && data?.success;
-      const inserted = data?.inserted ?? 0;
-      const updated = data?.updated ?? 0;
-      const lastSyncCount = inserted + updated;
-      const msg = data?.error ?? (ok ? `반영 ${lastSyncCount.toLocaleString()}건` : `오류: ${res.status}`);
-      setResult((r) => ({ ...r, [label]: { ok, msg } }));
-      if (ok) {
-        setMetadata((prev) => ({
-          ...prev,
-          [entityType]: {
-            entity_type: entityType,
-            last_synced_at: new Date().toISOString(),
-            inserted_count: inserted,
-            updated_count: updated,
-            total_count: lastSyncCount,
-          },
-        }));
-        const totalCount = data?.totalCount;
-        if (typeof totalCount === "number") {
-          setTableCounts((prev) => ({ ...prev, [entityType]: totalCount }));
-        } else {
-          try {
-            const countsRes = await fetch("/api/sync/table-counts");
-            const counts = await countsRes.json();
-            if (countsRes.ok && typeof counts === "object" && counts !== null) {
-              setTableCounts((prev) => ({ ...prev, ...counts }));
-            }
-          } catch {
-            // 건수 조회 실패 시 기존 값 유지
-          }
-        }
-      }
-    } catch (e) {
-      setResult((r) => ({ ...r, [label]: { ok: false, msg: String(e) } }));
-    } finally {
-      setProgress(100);
-      setLoading(null);
-    }
-  };
-
-  const isIncrementalLoading = (label: string) => loading === label;
-  const isFullLoading = (label: string) => loading === `${label}-full`;
-  const isAnyLoading = (label: string) => isIncrementalLoading(label) || isFullLoading(label);
-
   return (
     <div>
-      {/* 동기화 */}
+      {/* SAP 미러 동기화 상태 (조회 전용) */}
       <section>
-        <h2 className="text-base font-semibold text-gray-800 mb-2">동기화</h2>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h2 className="text-base font-semibold text-gray-800">SAP 동기화 상태</h2>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            새로고침
+          </button>
+        </div>
         <p className="text-gray-600 mb-4">
-          (증분): 변경된 데이터만 반영. (전체): 전체 데이터 반영.
+          SAP 원본 데이터는 PC 작업 스케줄러가 자동으로 동기화합니다. 이 화면은 실행 결과만 표시합니다.
+          {mirrorStatus?.initialLoadedAt && (
+            <span className="text-gray-500"> (초기 적재: {formatSyncDate(mirrorStatus.initialLoadedAt)})</span>
+          )}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-          {SYNC_ITEMS.map(({ label, path, entityType }) => {
-            const meta = metadata[entityType];
-            return (
-              <div
-                key={label}
-                className="flex flex-col gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
-              >
-                <div className="flex gap-1 w-full">
-                  <button
-                    type="button"
-                    disabled={loading !== null}
-                    onClick={() => runSync(label, path, entityType, false)}
-                    className="flex-1 min-w-0 px-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    {isIncrementalLoading(label) ? "처리 중..." : `${label.replace(" 동기화", "")} (증분)`}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={loading !== null}
-                    onClick={() => runSync(label, path, entityType, true)}
-                    className="flex-1 min-w-0 px-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    {isFullLoading(label) ? "처리 중..." : "(전체)"}
-                  </button>
-                </div>
-                <div className="flex flex-col gap-0.5 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-sm text-gray-600">
-                    마지막 동기화: {formatSyncDate(meta?.last_synced_at ?? null)}
-                  </span>
-                  {result[label] && !isAnyLoading(label) && (
-                    <span className={`text-sm ${result[label].ok ? "text-green-600" : "text-red-600"}`}>
-                      {result[label].msg}
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm text-gray-700">
-                  반영 {formatLastSyncCount(meta)}건 / 합계 {formatTotalCount(tableCounts[entityType])}건
-                </span>
+
+        {!mirrorStatus ? (
+          <p className="text-sm text-red-600">동기화 상태를 불러오지 못했습니다.</p>
+        ) : (
+          <>
+            {mirrorStatus.halted && (
+              <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">
+                SAP 부하가 감지되어 동기화가 정지된 상태입니다({formatSyncDate(mirrorStatus.haltedAt)}). 원인 확인 후
+                PC에서 <code className="px-1 bg-white rounded">npx tsx scripts/sap-mirror/sync.ts --clear-halt</code>로
+                해제해야 다시 실행됩니다.
               </div>
-                {isAnyLoading(label) && (
-                  <span className="text-sm text-gray-600">{progress}%</span>
-                )}
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+              {MODE_ITEMS.map(({ mode, label, schedule }) => {
+                const run: MirrorRun | undefined = mirrorStatus.lastByMode[mode];
+                return (
+                  <div key={mode} className="flex flex-col gap-1 p-3 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
+                    <span className="text-sm font-semibold text-gray-800">{label}</span>
+                    <span className="text-xs text-gray-500">{schedule}</span>
+                    <span className="text-sm text-gray-600 mt-1">마지막 실행: {formatSyncDate(run?.started_at ?? null)}</span>
+                    {run && <span className={`text-sm ${statusClass(run.status)}`}>{statusLabel(run.status)}</span>}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-          </div>
-        </section>
 
-        {/* 자동 동기화 이력: 좌우 전체 너비 */}
-        <section className="mt-10 w-full">
-          <h2 className="text-base font-semibold text-gray-800 mb-1">자동 동기화 이력</h2>
-          <p className="text-sm text-gray-500 mb-4">매일 오전 9시 일괄(좌) · 매 시간 증분(우)</p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mt-6">
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto min-w-0">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">매일 오전 9시 (일괄)</h3>
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">최근 실행 이력</h3>
+                {mirrorStatus.recentRuns.length > 0 ? (
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">시작 시각</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">종류</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">내용</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mirrorStatus.recentRuns.map((run) => (
+                        <tr key={run.id} className="border-b border-gray-100 align-top">
+                          <td className="py-1.5 px-2 text-gray-700 whitespace-nowrap text-xs">{formatSyncDate(run.started_at)}</td>
+                          <td className="py-1.5 px-2 text-gray-600 whitespace-nowrap">{modeLabel(run.mode)}</td>
+                          <td className={`py-1.5 px-2 whitespace-nowrap ${statusClass(run.status)}`}>{statusLabel(run.status)}</td>
+                          <td className="py-1.5 px-2 text-gray-600 text-xs break-all">{run.message ?? "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-gray-500">이력 없음</p>
+                )}
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto min-w-0">
+                <h3 className="text-sm font-semibold text-gray-800 mb-1">SAP 대사 결과</h3>
                 <p className="text-xs text-gray-500 mb-3">
-                  거래처 → 품목 → 입금 → 기타출고 → 매출 → 판매 (전 단계 전체)
+                  월별 건수·금액을 SAP와 비교합니다. 마지막 대사: {formatSyncDate(mirrorStatus.reconCheckedAt)}
                 </p>
-                {dailyBatchHistory.length > 0 ? (
+                {mirrorStatus.reconMismatches.length === 0 ? (
+                  <p className="text-sm text-green-600">불일치 없음</p>
+                ) : (
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">거래처</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">품목</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
-                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">테이블</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">월</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">SAP 건수</th>
+                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">미러 건수</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">확인 시각</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dailyBatchHistory.map((row) => {
-                        const statusLabel =
-                          row.status === "success"
-                            ? "성공"
-                            : row.status === "partial"
-                              ? "부분"
-                              : row.status === "failed"
-                                ? "실패"
-                                : row.status;
-                        return (
-                          <tr key={row.sync_date} className="border-b border-gray-100">
-                            <td className="py-1.5 px-2 text-gray-700 whitespace-nowrap text-xs">
-                              {row.completed_at ? formatSyncDate(row.completed_at) : "-"}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.customer_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.itemlist_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.inamt_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.saleetc_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.sales_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {(row.orders_count ?? 0).toLocaleString()}
-                            </td>
-                            <td
-                              className={`py-1.5 px-2 ${
-                                row.status === "success"
-                                  ? "text-green-600"
-                                  : row.status === "partial"
-                                    ? "text-amber-600"
-                                    : "text-red-600"
-                              }`}
-                            >
-                              {statusLabel}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {mirrorStatus.reconMismatches.map((r) => (
+                        <tr key={`${r.table_name}-${r.ym}`} className="border-b border-gray-100">
+                          <td className="py-1.5 px-2 text-gray-700">{r.table_name}</td>
+                          <td className="py-1.5 px-2 text-gray-600">{r.ym}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">{Number(r.sap_rows).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-red-600">{Number(r.mirror_rows).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-gray-600 whitespace-nowrap text-xs">{formatSyncDate(r.checked_at)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
-                ) : (
-                  <p className="text-sm text-gray-500">이력 없음</p>
                 )}
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto min-w-0">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">매 시간 (증분)</h3>
-                <p className="text-xs text-gray-500 mb-3">입금 → 기타출고 → 매출 → 판매</p>
-                {hourlyHistory.length > 0 ? (
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">완료 시각</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">입금</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">기타출고</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">매출</th>
-                        <th className="text-right py-1.5 px-2 font-medium text-gray-600">판매</th>
-                        <th className="text-left py-1.5 px-2 font-medium text-gray-600">상태</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {hourlyHistory.map((row) => {
-                        const statusLabel =
-                          row.status === "success"
-                            ? "성공"
-                            : row.status === "partial"
-                              ? "부분"
-                              : row.status === "failed"
-                                ? "실패"
-                                : row.status;
-                        return (
-                          <tr key={row.id} className="border-b border-gray-100">
-                            <td className="py-1.5 px-2 text-gray-700 whitespace-nowrap text-xs">
-                              {formatSyncDate(row.completed_at)}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.inamt_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.saleetc_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.sales_count.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
-                              {row.orders_count.toLocaleString()}
-                            </td>
-                            <td
-                              className={`py-1.5 px-2 ${
-                                row.status === "success"
-                                  ? "text-green-600"
-                                  : row.status === "partial"
-                                    ? "text-amber-600"
-                                    : "text-red-600"
-                              }`}
-                            >
-                              {statusLabel}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-sm text-gray-500">이력 없음</p>
-                )}
-              </div>
-          </div>
-        </section>
+            </div>
+          </>
+        )}
+      </section>
 
-        {/* 점검 정보: 페이지 하단 */}
-        <section className="mt-10 pt-8 border-t border-gray-200">
-          <h2 className="text-base font-semibold text-gray-800 mb-2">점검 정보</h2>
-          <p className="text-gray-600 mb-4">
-            점검중 페이지에 표시할 내용과 기간을 입력하세요. 비워두면 점검 페이지에서 표시되지 않습니다.
-          </p>
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">점검 내용</label>
-              <textarea
-                value={maintenance.content}
-                onChange={(e) => setMaintenance((m) => ({ ...m, content: e.target.value }))}
-                rows={3}
-                placeholder="예: 시스템 업그레이드 작업"
+      {/* 점검 정보: 페이지 하단 */}
+      <section className="mt-10 pt-8 border-t border-gray-200">
+        <h2 className="text-base font-semibold text-gray-800 mb-2">점검 정보</h2>
+        <p className="text-gray-600 mb-4">
+          점검중 페이지에 표시할 내용과 기간을 입력하세요. 비워두면 점검 페이지에서 표시되지 않습니다.
+        </p>
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-2xl space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">점검 내용</label>
+            <textarea
+              value={maintenance.content}
+              onChange={(e) => setMaintenance((m) => ({ ...m, content: e.target.value }))}
+              rows={3}
+              placeholder="예: 시스템 업그레이드 작업"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-medium text-gray-600 mb-1">점검 시작일시</label>
+              <input
+                type="datetime-local"
+                value={maintenance.time_from}
+                onChange={(e) => setMaintenance((m) => ({ ...m, time_from: e.target.value }))}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-gray-600 mb-1">점검 시작일시</label>
-                <input
-                  type="datetime-local"
-                  value={maintenance.time_from}
-                  onChange={(e) => setMaintenance((m) => ({ ...m, time_from: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-gray-600 mb-1">점검 종료일시</label>
-                <input
-                  type="datetime-local"
-                  value={maintenance.time_to}
-                  onChange={(e) => setMaintenance((m) => ({ ...m, time_to: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={saveMaintenance}
-                disabled={maintenanceSaving}
-                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {maintenanceSaving ? "저장 중..." : "저장"}
-              </button>
-              {maintenanceMsg && (
-                <span className={`text-sm ${maintenanceMsg.ok ? "text-green-600" : "text-red-600"}`}>
-                  {maintenanceMsg.msg}
-                </span>
-              )}
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-medium text-gray-600 mb-1">점검 종료일시</label>
+              <input
+                type="datetime-local"
+                value={maintenance.time_to}
+                onChange={(e) => setMaintenance((m) => ({ ...m, time_to: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
             </div>
           </div>
-        </section>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveMaintenance}
+              disabled={maintenanceSaving}
+              className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {maintenanceSaving ? "저장 중..." : "저장"}
+            </button>
+            {maintenanceMsg && (
+              <span className={`text-sm ${maintenanceMsg.ok ? "text-green-600" : "text-red-600"}`}>
+                {maintenanceMsg.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

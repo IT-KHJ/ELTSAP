@@ -1,6 +1,7 @@
 /**
  * 거래처 현황 보고서용 집계.
  * 월 단위 집계는 서버 SQL로 처리, 클라이언트 reduce 금지.
+ * 데이터: SAP 원본 미러 기반 rpt_sales_line / rpt_payment(거래원장과 같은 입금 규칙) / rpt_gift_line / sap_oitm (030~032 마이그레이션)
  */
 
 import { getSupabaseAdmin } from "./supabase";
@@ -34,7 +35,7 @@ async function fetchSalesByCategoryFromDb(
   itmsgrpcod: number,
   returnsOnly: boolean
 ): Promise<MonthlyAmount> {
-  const { data } = await admin.rpc("get_sales_by_category_monthly", {
+  const { data } = await admin.rpc("rpt_sales_by_category_monthly", {
     p_basecard: cardcode,
     p_start: startDate,
     p_end: endDate,
@@ -67,12 +68,14 @@ async function fetchAllSalesQty(
   let offset = 0;
   while (true) {
     const { data } = await admin
-      .from("sales")
+      .from("rpt_sales_line")
       .select("itemcode, quantity")
       .eq("basecard", cardcode)
-      .or("linestatus.eq.O,linestatus.is.null")
       .gte("docdate", startDate)
       .lte("docdate", endDate)
+      .order("source")
+      .order("docentry")
+      .order("linenum")
       .range(offset, offset + SALES_PAGE_SIZE - 1);
     const rows = (data ?? []) as SalesQtyRow[];
     out.push(...rows);
@@ -148,19 +151,22 @@ export async function getInamtMonthly(
   previousEnd: string
 ) {
   const admin = getSupabaseAdmin();
+  // 거래원장과 동일한 입금 규칙(rpt_payment): 입금 문서 + 수동 분개 입금, 채권조정 제외
   const { data: currentRaw } = await admin
-    .from("inamt")
-    .select("docdate, doctotal")
+    .from("rpt_payment")
+    .select("docdate:txdate, doctotal:amount")
     .eq("cardcode", cardcode)
-    .gte("docdate", startDate)
-    .lte("docdate", endDate);
+    .eq("gubun", "입금")
+    .gte("txdate", startDate)
+    .lte("txdate", endDate);
 
   const { data: previousRaw } = await admin
-    .from("inamt")
-    .select("docdate, doctotal")
+    .from("rpt_payment")
+    .select("docdate:txdate, doctotal:amount")
     .eq("cardcode", cardcode)
-    .gte("docdate", previousStart)
-    .lte("docdate", previousEnd);
+    .eq("gubun", "입금")
+    .gte("txdate", previousStart)
+    .lte("txdate", previousEnd);
 
   type InamtRow = { docdate: string | null; doctotal: number | null };
   const current = (currentRaw ?? []) as InamtRow[];
@@ -204,23 +210,30 @@ export async function getGiftQtyMonthly(
   previousEnd: string
 ) {
   const admin = getSupabaseAdmin();
-  const { data: currentRaw } = await admin
-    .from("saleetc")
-    .select("docdate, quantity")
-    .eq("basecard", cardcode)
-    .gte("docdate", startDate)
-    .lte("docdate", endDate);
-
-  const { data: previousRaw } = await admin
-    .from("saleetc")
-    .select("docdate, quantity")
-    .eq("basecard", cardcode)
-    .gte("docdate", previousStart)
-    .lte("docdate", previousEnd);
-
   type SaleetcQtyRow = { docdate: string | null; quantity: number | null };
-  const current = (currentRaw ?? []) as SaleetcQtyRow[];
-  const previous = (previousRaw ?? []) as SaleetcQtyRow[];
+  // 1,000행 제한(PostgREST) 때문에 페이지 단위로 전부 조회 (기존에는 첫 1,000행만 집계되던 문제)
+  const fetchAll = async (from: string, to: string): Promise<SaleetcQtyRow[]> => {
+    const out: SaleetcQtyRow[] = [];
+    let offset = 0;
+    while (true) {
+      const { data } = await admin
+        .from("rpt_gift_line")
+        .select("docdate, quantity")
+        .eq("basecard", cardcode)
+        .gte("docdate", from)
+        .lte("docdate", to)
+        .order("docentry")
+        .order("linenum")
+        .range(offset, offset + SALES_PAGE_SIZE - 1);
+      const rows = (data ?? []) as SaleetcQtyRow[];
+      out.push(...rows);
+      if (rows.length < SALES_PAGE_SIZE) break;
+      offset += SALES_PAGE_SIZE;
+    }
+    return out;
+  };
+
+  const [current, previous] = await Promise.all([fetchAll(startDate, endDate), fetchAll(previousStart, previousEnd)]);
 
   const toMonthly = (rows: SaleetcQtyRow[]) => {
     const m = emptyMonthly();
@@ -281,7 +294,7 @@ export async function getTopItems(
   if (allCodes.size === 0) return [];
 
   const { data: namesRaw } = await admin
-    .from("itemlist")
+    .from("sap_oitm")
     .select("itemcode, itemname")
     .in("itemcode", Array.from(allCodes));
 
@@ -342,8 +355,8 @@ export async function getTopBrands(
   for (let i = 0; i < codesArr.length; i += ITEMLIST_BATCH_SIZE) {
     const chunk = codesArr.slice(i, i + ITEMLIST_BATCH_SIZE);
     const { data: itemsRaw } = await admin
-      .from("itemlist")
-      .select("itemcode, brand")
+      .from("sap_oitm")
+      .select("itemcode, brand:u_level3nm")
       .in("itemcode", chunk);
     type ItemBrandRow = { itemcode: string; brand: string | null };
     (itemsRaw ?? []).forEach((r: ItemBrandRow) => {

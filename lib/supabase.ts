@@ -25,3 +25,19 @@ export function getSupabaseAdmin(): any {
   if (!u || !key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for admin operations");
   return createClient(u, key, { auth: { persistSession: false } });
 }
+
+/**
+ * 최신 값이 꼭 보여야 하는 조회 전용(lib/mirror-status.ts 설정 화면 동기화 상태, lib/ledger-queries.ts 거래원장).
+ * Next.js가 fetch 응답을 캐싱해 값이 갱신되지 않던 문제 방지.
+ * getSupabaseAdmin()과 동작은 동일하고 fetch에 cache:"no-store"만 강제함 — 다른 화면에는 영향 없음.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabaseAdminNoCache(): any {
+  const u = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!u || !key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for admin operations");
+  return createClient(u, key, {
+    auth: { persistSession: false },
+    global: { fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }) },
+  });
+}
