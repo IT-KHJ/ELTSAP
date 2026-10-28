@@ -12,10 +12,19 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#e63929",
-          hover: "#c33022",
-          light: "#fdefed",
+          DEFAULT: "#e83828",
+          hover: "#c32f22",
+          light: "#fdefee",
         },
+        "ne-black": "#1d1717",
+        "ne-blue": "#a0d2f2",
+        "ne-gold": "#debe95",
+        "ne-silver": "#cdcecd",
+      },
+      fontFamily: {
+        sans: ["Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "sans-serif"],
+        "kor-title": ["KOROAD", "Pretendard", "sans-serif"],
+        "kor-sub": ["Paperlogy", "Pretendard", "sans-serif"],
       },
     },
   },

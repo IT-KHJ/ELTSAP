@@ -75,7 +75,7 @@ export default function MaintenancePage() {
                 priority
               />
             </div>
-            <h1 className="text-xl font-bold text-white text-center">
+            <h1 className="font-kor-title text-xl font-bold text-white text-center">
               사이트 점검중입니다.
             </h1>
           </div>

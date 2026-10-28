@@ -112,8 +112,8 @@ export default function LoginPage() {
                 priority
               />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">ELT SAP 데이터</h1>
-            <p className="text-gray-600 mt-2">내부 대시보드 로그인</p>
+            <h1 className="font-kor-title text-2xl font-bold text-gray-900">ELT SAP 데이터</h1>
+            <p className="font-kor-sub text-gray-600 mt-2">내부 대시보드 로그인</p>
           </div>
 
           {error && (
