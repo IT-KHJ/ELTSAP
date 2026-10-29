@@ -70,6 +70,14 @@
 
 ---
 
+### 자동 배포가 멈췄을 때
+
+- 증상(2026-04~10월): push해도 Vercel에 배포 기록이 생기지 않고, 수동 Create Deployment 시 "There is no GitHub account connected to this Vercel account" 오류
+- 해결(2026-10-28): Vercel 프로젝트 **Settings → Git**에서 저장소 연결을 끊고(Disconnect) `IT-KHJ/ELTSAP`으로 다시 연결
+- 확인: GitHub 커밋 상태(`Vercel: pending/success`) 또는 Vercel Deployments 목록
+
+---
+
 ## 3. 배포 후 확인
 
 - Vercel에서 제공하는 URL(예: `https://eltsap-xxx.vercel.app`)로 접속  

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useModal } from "@/lib/components/ModalProvider";
 import { DashboardFilter, type CustomerOption } from "./components/DashboardFilter";
@@ -63,10 +63,18 @@ function DashboardContent() {
   const start = `${startYear}-${String(startMonth).padStart(2, "0")}`;
   const end = `${endYear}-${String(endMonth).padStart(2, "0")}`;
 
-  const searchCustomers = useCallback(async (q: string) => {
-    const res = await fetch(`/api/customers?q=${encodeURIComponent(q.trim())}`);
-    const list = (await res.json()) as CustomerOption[];
-    setOptions(list);
+  // 거래처 자동완성: 입력이 멈춘 뒤(250ms) 검색하고, 가장 최근 요청의 응답만 반영
+  // (응답이 늦게 도착한 이전 검색 결과가 현재 목록을 덮어쓰지 않도록)
+  const searchSeqRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchCustomers = useCallback((q: string) => {
+    const seq = ++searchSeqRef.current;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      const res = await fetch(`/api/customers?q=${encodeURIComponent(q.trim())}`);
+      const list = (await res.json()) as CustomerOption[];
+      if (seq === searchSeqRef.current) setOptions(list);
+    }, 250);
   }, []);
 
   /** report page loadReport 패턴: 클릭 시점 state에서 start/end 직접 계산. 정렬/페이지는 overrides로 전달 */
@@ -228,6 +236,7 @@ function DashboardContent() {
             searchCustomers(q);
           }}
           onCustomerSelect={(c) => {
+            if (c) searchSeqRef.current++; // 선택 후 도착하는 검색 응답은 무시
             setCustomer(c);
             setOptions([]);
           }}

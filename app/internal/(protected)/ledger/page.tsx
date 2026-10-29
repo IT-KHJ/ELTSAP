@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useModal } from "@/lib/components/ModalProvider";
 import { formatAmount } from "@/lib/format";
 import { buildLedgerExcel } from "@/lib/ledger-excel";
@@ -28,10 +28,18 @@ export default function LedgerPage() {
   const [data, setData] = useState<LedgerResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const searchCustomers = useCallback(async (q: string) => {
-    const res = await fetch(`/api/ledger/customers?q=${encodeURIComponent(q.trim())}`);
-    const list = await res.json();
-    setOptions(Array.isArray(list) ? (list as LedgerCustomerOption[]) : []);
+  // 거래처 자동완성: 입력이 멈춘 뒤(250ms) 검색하고, 가장 최근 요청의 응답만 반영
+  // (응답이 늦게 도착한 이전 검색 결과가 현재 목록을 덮어쓰지 않도록)
+  const searchSeqRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchCustomers = useCallback((q: string) => {
+    const seq = ++searchSeqRef.current;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      const res = await fetch(`/api/ledger/customers?q=${encodeURIComponent(q.trim())}`);
+      const list = await res.json();
+      if (seq === searchSeqRef.current) setOptions(Array.isArray(list) ? (list as LedgerCustomerOption[]) : []);
+    }, 250);
   }, []);
 
   const handleLoad = useCallback(async () => {
@@ -107,6 +115,7 @@ export default function LedgerPage() {
             searchCustomers(q);
           }}
           onCustomerSelect={(c) => {
+            if (c) searchSeqRef.current++; // 선택 후 도착하는 검색 응답은 무시
             setCustomer(c);
             setOptions([]);
           }}
