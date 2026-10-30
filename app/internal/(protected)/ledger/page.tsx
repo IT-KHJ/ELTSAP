@@ -97,7 +97,7 @@ export default function LedgerPage() {
       <div className="flex flex-wrap items-baseline gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">거래처 거래원장</h1>
         <span className="text-sm text-gray-500 font-normal">
-          SAP 원본 데이터 기준 · 평일 업무시간 매시 갱신 · 채권잔액은 납품 시점 기준
+          SAP 원본 데이터 기준 · 평일 업무시간 매시 갱신 · 채권잔액은 SAP 송장 기준(날짜는 납품일)
         </span>
       </div>
 

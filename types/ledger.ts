@@ -5,7 +5,7 @@ export interface LedgerRow {
   seq: number;
   txdate: string | null;
   docnum: number | null;
-  /** 전기이월 | 납품 | 매출(납품 없는 송장) | 반품 | 대변메모 | 입금 | 채권조정 */
+  /** 전기이월 | 매출(송장) | 대변메모 | 입금 | 채권조정 */
   gubun: string;
   descr: string | null;
   qty: number | null;
