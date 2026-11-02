@@ -79,3 +79,44 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+/** PUT /api/customers/manage — 여러 거래처 일괄 수정. body: { rows: [{ cardcode, useyn, sido, sigun }] }. 한 번의 upsert로 저장 */
+export async function PUT(request: NextRequest) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 수정할 수 있습니다." }, { status: 403 });
+
+    const body = await request.json() as { rows?: unknown };
+    if (!Array.isArray(body.rows) || body.rows.length === 0) {
+      return NextResponse.json({ error: "수정할 거래처가 없습니다." }, { status: 400 });
+    }
+
+    const records: ({ cardcode: string } & Record<EditableField, string | null>)[] = [];
+    for (const item of body.rows as Record<string, unknown>[]) {
+      const cardcode = item?.cardcode;
+      if (!cardcode || typeof cardcode !== "string") {
+        return NextResponse.json({ error: "cardcode가 필요합니다." }, { status: 400 });
+      }
+      // 모든 행이 같은 컬럼을 갖도록 3개 필드를 항상 채움
+      const record = { cardcode } as { cardcode: string } & Record<EditableField, string | null>;
+      for (const field of EDITABLE_FIELDS) {
+        const val = item[field];
+        record[field] = val === null || val === undefined ? null : String(val);
+      }
+      records.push(record);
+    }
+
+    const admin = getSupabaseAdmin();
+    const { error } = await admin
+      .from("customer")
+      .upsert(records, { onConflict: "cardcode" });
+
+    if (error) throw error;
+    return NextResponse.json({ ok: true, count: records.length });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "거래처 수정 중 오류가 발생했습니다.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

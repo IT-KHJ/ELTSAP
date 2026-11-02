@@ -48,8 +48,8 @@ export function CustomersPageClient({ initialRows }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<CustomerManageRow[]>(initialRows);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [saveResults, setSaveResults] = useState<Record<string, "ok" | "error">>({});
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ type: "ok" | "error"; message: string } | null>(null);
   const [search, setSearch] = useState("");
   const [useynFilter, setUseynFilter] = useState<"" | "Y" | "N">("Y");
   const [sidoFilter, setSidoFilter] = useState<string>("");
@@ -59,6 +59,17 @@ export function CustomersPageClient({ initialRows }: Props) {
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
+
+  // 저장하지 않은 수정이 있으면 새로고침/창 닫기 시 브라우저 경고
+  useEffect(() => {
+    if (dirty.size === 0) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -89,64 +100,52 @@ export function CustomersPageClient({ initialRows }: Props) {
         next.add(cardcode);
         return next;
       });
-      setSaveResults((prev) => {
-        const next = { ...prev };
-        delete next[cardcode];
-        return next;
-      });
+      setSaveResult(null);
     },
     []
   );
 
-  const handleSave = useCallback(
-    async (cardcode: string) => {
-      const row = rows.find((r) => r.cardcode === cardcode);
-      if (!row) return;
-
-      setSaving((prev) => {
-        const next = new Set(prev);
-        next.add(cardcode);
-        return next;
+  /** 수정된 행 전체를 한 번에 저장. 실패 시 화면의 수정값은 그대로 유지 */
+  const handleSaveAll = useCallback(async () => {
+    if (dirty.size === 0) return;
+    const payload = rows
+      .filter((r) => dirty.has(r.cardcode))
+      .map((r) => {
+        const item: Record<string, string | null> = { cardcode: r.cardcode };
+        for (const field of EDITABLE_FIELDS) {
+          item[field] = r[field] ?? null;
+        }
+        return item;
       });
 
-      try {
-        const body: Record<string, string | null> = { cardcode };
-        for (const field of EDITABLE_FIELDS) {
-          body[field] = row[field] ?? null;
-        }
-        const res = await fetch("/api/customers/manage", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(await res.text());
-
-        setDirty((prev) => {
-          const next = new Set(prev);
-          next.delete(cardcode);
-          return next;
-        });
-        setSaveResults((prev) => ({ ...prev, [cardcode]: "ok" }));
-        router.refresh();
-      } catch {
-        setSaveResults((prev) => ({ ...prev, [cardcode]: "error" }));
-      } finally {
-        setSaving((prev) => {
-          const next = new Set(prev);
-          next.delete(cardcode);
-          return next;
-        });
+    setSaving(true);
+    setSaveResult(null);
+    try {
+      const res = await fetch("/api/customers/manage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: payload }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? "저장 중 오류가 발생했습니다.");
       }
-    },
-    [rows, router]
-  );
+
+      setDirty(new Set());
+      setSaveResult({ type: "ok", message: `${payload.length}건 저장 완료` });
+      // 전부 저장된 경우에만 서버 값으로 다시 불러옴
+      router.refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.";
+      setSaveResult({ type: "error", message: `저장 실패: ${message}` });
+    } finally {
+      setSaving(false);
+    }
+  }, [dirty, rows, router]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">거래처 관리</h1>
-        <span className="text-sm text-gray-500">총 {rows.length}개 · 조회 {filteredRows.length}개</span>
-      </div>
+      <h1 className="text-xl font-bold text-gray-900">거래처 관리</h1>
 
       <div className="flex items-center gap-2 flex-wrap">
         <select
@@ -189,9 +188,26 @@ export function CustomersPageClient({ initialRows }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary"
         />
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-sm text-gray-500">총 {rows.length}개 · 조회 {filteredRows.length}개</span>
+          {dirty.size > 0 && <span className="text-sm text-amber-600">수정 {dirty.size}건</span>}
+          {saveResult && (
+            <span className={`text-sm ${saveResult.type === "ok" ? "text-green-600" : "text-red-600"}`}>
+              {saveResult.message}
+            </span>
+          )}
+          <button
+            onClick={handleSaveAll}
+            disabled={dirty.size === 0 || saving}
+            className="px-3 py-1.5 text-sm rounded bg-primary text-white hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? "저장 중…" : "저장"}
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      {/* 표 영역 높이를 화면에 맞춰 제한 → 좌우 스크롤바가 항상 보이고 헤더가 고정됨 */}
+      <div className="overflow-auto max-h-[calc(100vh-11rem)] border border-gray-200 rounded-lg">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
@@ -203,16 +219,12 @@ export function CustomersPageClient({ initialRows }: Props) {
                   {COLUMN_LABELS[col]}
                 </th>
               ))}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap border-b border-gray-200">
-                저장
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {filteredRows.map((row) => {
-              const isSaving = saving.has(row.cardcode);
+              const isSaving = saving;
               const isDirty = dirty.has(row.cardcode);
-              const result = saveResults[row.cardcode];
               const sigunOptions = SIGUN_BY_SIDO[row.sido ?? ""] ?? [];
               return (
                 <tr
@@ -262,25 +274,12 @@ export function CustomersPageClient({ initialRows }: Props) {
                       )}
                     </td>
                   ))}
-                  <td className="px-2 py-1 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleSave(row.cardcode)}
-                        disabled={!isDirty || isSaving}
-                        className="px-2 py-0.5 text-xs rounded bg-primary text-white hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isSaving ? "저장 중…" : "저장"}
-                      </button>
-                      {result === "ok" && <span className="text-xs text-green-600">완료</span>}
-                      {result === "error" && <span className="text-xs text-red-600">오류</span>}
-                    </div>
-                  </td>
                 </tr>
               );
             })}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={COLUMN_ORDER.length + 1} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={COLUMN_ORDER.length} className="px-4 py-8 text-center text-gray-400">
                   검색 결과가 없습니다.
                 </td>
               </tr>
