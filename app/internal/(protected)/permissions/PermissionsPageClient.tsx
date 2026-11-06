@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { UserMessageError, readApiError, retryMessage, toUserMessage } from '@/lib/user-error';
 
 interface Menu {
   id: string;
@@ -34,7 +35,7 @@ export default function PermissionsPageClient() {
       const res = await fetch('/api/permissions');
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `HTTP ${res.status}`);
+        throw new UserMessageError(data.error ?? retryMessage('사용자 권한 정보를 불러오지 못했어요.'));
       }
       const data = await res.json();
       setUsers(data.users ?? []);
@@ -45,7 +46,7 @@ export default function PermissionsPageClient() {
       }
       setLocalPerms(perms);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '조회 실패');
+      setError(toUserMessage(e, retryMessage('사용자 권한 정보를 불러오지 못했어요.')));
     } finally {
       setLoading(false);
     }
@@ -63,11 +64,10 @@ export default function PermissionsPageClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, menuIds: localPerms[email] ?? [] }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? '저장 실패');
+      if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage('사용자 권한을 저장하지 못했어요.')));
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장 실패');
+      setError(toUserMessage(e, retryMessage('사용자 권한을 저장하지 못했어요.')));
     } finally {
       setSaving(null);
     }
@@ -94,14 +94,13 @@ export default function PermissionsPageClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: addEmail.trim(), displayName: addDisplayName.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? '추가 실패');
+      if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage('사용자를 추가하지 못했어요.')));
       setAddMsg({ ok: true, msg: '사용자가 추가되었습니다.' });
       setAddEmail('');
       setAddDisplayName('');
       await fetchData();
     } catch (e) {
-      setAddMsg({ ok: false, msg: e instanceof Error ? e.message : '추가 실패' });
+      setAddMsg({ ok: false, msg: toUserMessage(e, retryMessage('사용자를 추가하지 못했어요.')) });
     } finally {
       setAddSaving(false);
     }
@@ -117,8 +116,8 @@ export default function PermissionsPageClient() {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-        <p className="text-red-700">{error}</p>
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+        <p className="text-amber-800 whitespace-pre-line">{error}</p>
       </div>
     );
   }
@@ -159,7 +158,7 @@ export default function PermissionsPageClient() {
           </button>
         </div>
         {addMsg && (
-          <p className={`mt-2 text-sm ${addMsg.ok ? 'text-green-600' : 'text-red-600'}`}>{addMsg.msg}</p>
+          <p className={`mt-2 text-sm whitespace-pre-line ${addMsg.ok ? 'text-green-600' : 'text-amber-700'}`}>{addMsg.msg}</p>
         )}
       </section>
 

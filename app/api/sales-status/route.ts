@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSalesStatusFromOrders } from "@/lib/orders-queries";
+import { parseSegment } from "@/lib/constants";
+import { serverErrorResponse } from "@/lib/api-error";
 
-/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit? (Supabase orders 기반) */
+/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit?, segment? (Supabase orders 기반) */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,10 +15,11 @@ export async function GET(request: NextRequest) {
     const salesType = (searchParams.get("salesType") as "all" | "sales" | "return") || "all";
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
+    const segment = parseSegment(searchParams.get("segment"));
 
     if (!start || !end) {
       return NextResponse.json(
-        { error: "start와 end 파라미터가 필요합니다. (YYYY-MM-DD)" },
+        { error: "조회 기간을 선택하세요." },
         { status: 400 }
       );
     }
@@ -30,11 +33,11 @@ export async function GET(request: NextRequest) {
       salesType,
       offset,
       limit,
+      segment,
     });
 
     return NextResponse.json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/sales-status", "판매 자료를 불러오지 못했어요.");
   }
 }

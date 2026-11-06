@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
+import type { Segment } from "@/lib/constants";
+import { SegmentRadio } from "../../components/SegmentRadio";
 
 export type CustomerOption = { cardcode: string; cardname: string | null };
 
@@ -24,6 +26,8 @@ interface DashboardFilterProps {
   sigun: string;
   onSidoChange: (v: string) => void;
   onSigunChange: (v: string) => void;
+  segment: Segment;
+  onSegmentChange: (v: Segment) => void;
   onLoad: () => void;
   loading: boolean;
   hasData: boolean;
@@ -49,6 +53,8 @@ export function DashboardFilter({
   sigun,
   onSidoChange,
   onSigunChange,
+  segment,
+  onSegmentChange,
   onLoad,
   loading,
   hasData,
@@ -176,6 +182,7 @@ export function DashboardFilter({
               </select>
             </div>
           </div>
+          <SegmentRadio value={segment} onChange={onSegmentChange} />
         </div>
         <div className="flex items-center gap-2">
           <button

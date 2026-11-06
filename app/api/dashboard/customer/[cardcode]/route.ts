@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCustomerDetail } from "@/lib/dashboard-queries";
+import { serverErrorResponse } from "@/lib/api-error";
 
 function toLocalDateString(date: Date): string {
   const y = date.getFullYear();
@@ -20,10 +21,10 @@ export async function GET(
     const endParam = searchParams.get("end");
 
     if (!cardcode?.trim()) {
-      return NextResponse.json({ error: "cardcode가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "거래처를 선택하세요." }, { status: 400 });
     }
     if (!startParam || !endParam) {
-      return NextResponse.json({ error: "start, end (yyyy-mm)가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "조회 기간을 선택하세요." }, { status: 400 });
     }
 
     const [sy, sm] = startParam.split("-").map(Number);
@@ -47,7 +48,6 @@ export async function GET(
       endDate,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "거래처 상세 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/dashboard/customer/[cardcode]", "거래처 상세 자료를 불러오지 못했어요.");
   }
 }

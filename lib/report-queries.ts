@@ -12,10 +12,17 @@ import {
   LABEL_OUP,
   LABEL_BG_RETURN,
   LABEL_OUP_RETURN,
+  LABEL_JHG,
+  LABEL_JHG_RETURN,
   MONTHS,
+  SUBJECT_ORDER,
+  SUBJECT_BY_OCRCODE2,
+  SPLIT_TRIGGER_SUBJECTS,
+  type Segment,
 } from "./constants";
 import type { MonthlyAmount, SalesByCategory, TopItemRow, TopBrandRow } from "@/types/report";
 import { formatChangePercent } from "./format";
+import { UserMessageError } from "./user-error";
 
 function emptyMonthly(): MonthlyAmount {
   const o: MonthlyAmount = { total: 0 } as MonthlyAmount;
@@ -94,12 +101,25 @@ function monthKey(dateStr: string): string {
 
 /** SALES + ITEMLIST EXISTS 조인으로 월별 totalsumsy 집계 (사용자 SQL과 동일 로직)
  * 매출: 양수/음수/0 모두 합산. 반품: totalsumsy < 0만 */
+function applyChangePercent(cat: SalesByCategory) {
+  const c = cat.currentYear;
+  const p = cat.previousYear;
+  MONTHS.forEach((month) => {
+    const key = String(month);
+    const cv = (c as unknown as Record<string, number>)[key] ?? 0;
+    const pv = (p as unknown as Record<string, number>)[key] ?? 0;
+    (cat.changePercent as Record<string, string>)[key] = formatChangePercent(cv, pv).text;
+  });
+  (cat.changePercent as Record<string, string>).total = formatChangePercent(c.total, p.total).text;
+}
+
 export async function getSalesByCategory(
   cardcode: string,
   startDate: string,
   endDate: string,
   previousStart: string,
-  previousEnd: string
+  previousEnd: string,
+  segment: Segment | null
 ): Promise<{ salesByCategory: SalesByCategory[]; returnsByCategory: SalesByCategory[] }> {
   const admin = getSupabaseAdmin();
   const ITMSGRP_BG = 100;
@@ -116,24 +136,12 @@ export async function getSalesByCategory(
     fetchSalesByCategoryFromDb(admin, cardcode, previousStart, previousEnd, ITMSGRP_OUP, true),
   ]);
 
-  const applyChangePercent = (cat: SalesByCategory) => {
-    const c = cat.currentYear;
-    const p = cat.previousYear;
-    MONTHS.forEach((month) => {
-      const key = String(month);
-      const cv = (c as unknown as Record<string, number>)[key] ?? 0;
-      const pv = (p as unknown as Record<string, number>)[key] ?? 0;
-      (cat.changePercent as Record<string, string>)[key] = formatChangePercent(cv, pv).text;
-    });
-    (cat.changePercent as Record<string, string>).total = formatChangePercent(c.total, p.total).text;
-  };
-
   const salesResult: SalesByCategory[] = [
-    { categoryCode: CATEGORY_BG, categoryLabel: LABEL_BG, currentYear: bgCur, previousYear: bgPrev, changePercent: {} },
+    { categoryCode: CATEGORY_BG, categoryLabel: segment === "중고등" ? LABEL_JHG : LABEL_BG, currentYear: bgCur, previousYear: bgPrev, changePercent: {} },
     { categoryCode: CATEGORY_OUP, categoryLabel: LABEL_OUP, currentYear: oupCur, previousYear: oupPrev, changePercent: {} },
   ];
   const returnsResult: SalesByCategory[] = [
-    { categoryCode: CATEGORY_BG, categoryLabel: LABEL_BG_RETURN, currentYear: retBgCur, previousYear: retBgPrev, changePercent: {} },
+    { categoryCode: CATEGORY_BG, categoryLabel: segment === "중고등" ? LABEL_JHG_RETURN : LABEL_BG_RETURN, currentYear: retBgCur, previousYear: retBgPrev, changePercent: {} },
     { categoryCode: CATEGORY_OUP, categoryLabel: LABEL_OUP_RETURN, currentYear: retOupCur, previousYear: retOupPrev, changePercent: {} },
   ];
   salesResult.forEach(applyChangePercent);
@@ -404,4 +412,82 @@ export async function getTopBrands(
 
   rows.sort((a, b) => b.qtyCurrent - a.qtyCurrent);
   return rows;
+}
+
+/**
+ * 중고등 과목별 하위 행 (마감기준 "중고등 매출/반품" 아래 영어/수학/국어).
+ * 제품(itmsgrpcod 100)만, 과목 = SAP 판매 부서(OcrCode2). 하위 행 합 = 중고등 매출/반품 행.
+ * 표시 판단(2026-11-06 사용자 결정): 거래처별로 올해·전년 × 매출·반품 중 수학 또는 국어 금액이 하나라도 있으면
+ * 매출·반품 모두 과목별로 나눠 표시, 없으면 빈 배열(하나로 표시).
+ */
+export async function getSubjectBreakdown(
+  cardcode: string,
+  startDate: string,
+  endDate: string,
+  previousStart: string,
+  previousEnd: string
+): Promise<{ subjectSales: SalesByCategory[]; subjectReturns: SalesByCategory[] }> {
+  const admin = getSupabaseAdmin();
+  type DeptRow = { ocrcode2: string | null; month: number; total: number; returns: number };
+  const fetchPeriod = async (s: string, e: string) => {
+    const { data, error } = await admin.rpc("rpt_sales_by_dept_monthly", {
+      p_basecard: cardcode,
+      p_start: s,
+      p_end: e,
+      p_itmsgrpcod: Number(CATEGORY_BG),
+    });
+    if (error) throw new Error(error.message);
+    const sales: Record<string, MonthlyAmount> = {};
+    const returns: Record<string, MonthlyAmount> = {};
+    SUBJECT_ORDER.forEach((subj) => {
+      sales[subj] = emptyMonthly();
+      returns[subj] = emptyMonthly();
+    });
+    ((data ?? []) as DeptRow[]).forEach((r) => {
+      const subj = SUBJECT_BY_OCRCODE2[r.ocrcode2 ?? ""];
+      if (!subj) {
+        console.error(`[report] 과목 매핑이 없는 부서 코드: ${r.ocrcode2} (lib/constants.ts SUBJECT_BY_OCRCODE2)`);
+        throw new UserMessageError("이 거래처의 일부 판매 자료가 아직 과목별로 분류되지 않아 보고서를 보여 드릴 수 없어요.\n관리자에게 문의하세요.");
+      }
+      const k = String(r.month);
+      const t = Number(r.total) || 0;
+      const rt = Number(r.returns) || 0;
+      const sm = sales[subj] as unknown as Record<string, number>;
+      const rm = returns[subj] as unknown as Record<string, number>;
+      if (r.month >= 1 && r.month <= 12) {
+        sm[k] += t;
+        rm[k] += rt;
+      }
+      sm.total += t;
+      rm.total += rt;
+    });
+    return { sales, returns };
+  };
+
+  const [cur, prev] = await Promise.all([
+    fetchPeriod(startDate, endDate),
+    fetchPeriod(previousStart, previousEnd),
+  ]);
+
+  const hasData = (m: MonthlyAmount) =>
+    MONTHS.some((mo) => ((m as unknown as Record<string, number>)[String(mo)] ?? 0) !== 0) || m.total !== 0;
+  const split = SPLIT_TRIGGER_SUBJECTS.some(
+    (subj) =>
+      hasData(cur.sales[subj]) || hasData(prev.sales[subj]) || hasData(cur.returns[subj]) || hasData(prev.returns[subj])
+  );
+  if (!split) return { subjectSales: [], subjectReturns: [] };
+
+  const build = (kind: "sales" | "returns") =>
+    SUBJECT_ORDER.map((subj) => {
+      const cat: SalesByCategory = {
+        categoryCode: CATEGORY_BG,
+        categoryLabel: `└ ${subj}`,
+        currentYear: cur[kind][subj],
+        previousYear: prev[kind][subj],
+        changePercent: {},
+      };
+      applyChangePercent(cat);
+      return cat;
+    });
+  return { subjectSales: build("sales"), subjectReturns: build("returns") };
 }

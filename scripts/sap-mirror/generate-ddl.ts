@@ -113,12 +113,13 @@ ALTER TABLE public.sap_mirror_recon ENABLE ROW LEVEL SECURITY;
 -- 적재 대상 거래처 등록부 (loaded_at이 있는 거래처만 증분 동기화 대상)
 CREATE TABLE IF NOT EXISTS public.sap_mirror_customers (
   "cardcode"     text PRIMARY KEY,
-  "elt"          boolean NOT NULL DEFAULT true,    -- 현재 SAP 기준 ELT 거래처 여부
+  "elt"          boolean NOT NULL DEFAULT true,    -- 현재 SAP 기준 적재 대상 여부(이름은 ELT 시절 그대로, 사업부는 segment)
   "first_seen_at" timestamptz NOT NULL DEFAULT now(),
   "last_seen_at" timestamptz,
   "loaded_at"    timestamptz                       -- 초기 적재 완료 시각
 );
 ALTER TABLE public.sap_mirror_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sap_mirror_customers ADD COLUMN IF NOT EXISTS "segment" text;  -- 사업부 (schema.json segments)
 
 -- 초기 적재 진행 상황 (중단 후 이어하기용, 테이블 x 거래처 단위)
 CREATE TABLE IF NOT EXISTS public.sap_mirror_init_progress (
@@ -284,7 +285,7 @@ function main() {
     "-- SAP 원본 미러 계층 DDL (scripts/sap-mirror/generate-ddl.ts로 자동 생성 — 직접 수정하지 말 것)",
     `-- 기준: scripts/sap-mirror/schema.json (version ${spec.version})`,
     "-- 원칙: SAP 값을 변환 없이 보관(컬럼명은 소문자), 업무 규칙은 리포트 함수에서 적용. 기존 테이블/동기화와 독립.",
-    `-- 범위: 문서는 ELT 거래처(${spec.eltCustomerFilter}) 기준, 마스터는 전체. 개인정보 컬럼은 제외.`,
+    `-- 범위: 문서는 사업부 대상 거래처(${spec.segments.map((s) => `${s.segment}: ${s.customerFilter}`).join(" / ")}) 기준, 마스터는 전체. 개인정보 컬럼은 제외.`,
     "-- 멱등: 여러 번 실행해도 안전하며, 명세에 새로 추가된 테이블/컬럼/인덱스만 반영된다.",
     "",
   ];

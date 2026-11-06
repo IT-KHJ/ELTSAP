@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { CustomersPageClient } from "./CustomersPageClient";
+import { retryMessage } from "@/lib/user-error";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,10 @@ export default async function CustomersPage() {
     .order("cardname");
 
   if (error) {
+    console.error("[customers] 거래처 조회 실패:", error);
     return (
       <div className="p-6">
-        <p className="text-red-600">거래처 데이터를 불러오는 중 오류가 발생했습니다: {error.message}</p>
+        <p className="text-gray-700 whitespace-pre-line">{retryMessage("거래처 목록을 불러오지 못했어요.")}</p>
       </div>
     );
   }

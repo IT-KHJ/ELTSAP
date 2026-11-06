@@ -22,7 +22,8 @@ export default function LoginPage() {
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
-        setError('Supabase 설정이 올바르지 않습니다. 환경 변수를 확인해주세요.');
+        console.error('Supabase 환경 변수(NEXT_PUBLIC_SUPABASE_URL/ANON_KEY)가 없습니다.');
+        setError('지금은 로그인할 수 없어요. 관리자에게 문의하세요.');
         setIsLoading(false);
         return;
       }
@@ -34,15 +35,16 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        let errorMessage = authError.message;
+        console.error('Login auth error:', authError);
+        let errorMessage = '로그인하지 못했어요. 잠시 후 다시 시도하세요.';
         if (authError.message.includes('Invalid login credentials') || authError.message.includes('Invalid login')) {
-          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+          errorMessage = '이메일 또는 비밀번호가 맞지 않아요. 다시 확인하세요.';
         } else if (authError.message.includes('Email not confirmed')) {
-          errorMessage = '이메일 인증이 완료되지 않았습니다.';
+          errorMessage = '이메일 인증이 아직 끝나지 않았어요. 받은 메일에서 인증을 완료하세요.';
         } else if (authError.status === 400) {
-          errorMessage = '로그인 정보를 확인해주세요.';
+          errorMessage = '로그인 정보를 다시 확인하세요.';
         } else if (authError.message.includes('rate limit')) {
-          errorMessage = '너무 많은 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
+          errorMessage = '로그인 시도가 많았어요. 잠시 기다려 주세요.';
         }
         setError(errorMessage);
         setIsLoading(false);
@@ -50,7 +52,7 @@ export default function LoginPage() {
       }
 
       if (!data.session) {
-        setError('세션을 생성할 수 없습니다. 다시 시도해주세요.');
+        setError('로그인하지 못했어요. 다시 시도하세요.');
         setIsLoading(false);
         return;
       }
@@ -75,7 +77,7 @@ export default function LoginPage() {
           window.location.href = '/internal';
         }
       } else {
-        setError('세션 토큰을 가져올 수 없습니다. 다시 시도해주세요.');
+        setError('로그인하지 못했어요. 다시 시도하세요.');
         setIsLoading(false);
       }
     } catch (err) {
@@ -92,7 +94,7 @@ export default function LoginPage() {
           // ignore
         }
       }
-      setError('로그인 중 오류가 발생했습니다. 관리자에게 문의해주세요.');
+      setError('로그인하지 못했어요. 잠시 후 다시 시도하세요.\n문제가 계속되면 관리자에게 문의하세요.');
       setIsLoading(false);
     }
   }, [email, password, isLoading]);
@@ -112,12 +114,12 @@ export default function LoginPage() {
                 priority
               />
             </div>
-            <h1 className="font-kor-title text-2xl font-bold text-gray-900">ELT SAP 데이터</h1>
+            <h1 className="font-kor-title text-2xl font-bold text-gray-900">SAP 데이터</h1>
             <p className="font-kor-sub text-gray-600 mt-2">내부 대시보드 로그인</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm whitespace-pre-line">
               {error}
             </div>
           )}

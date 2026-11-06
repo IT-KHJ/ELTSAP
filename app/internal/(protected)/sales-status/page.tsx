@@ -5,7 +5,9 @@ import { useModal } from "@/lib/components/ModalProvider";
 import { SalesStatusFilter, type CustomerOption, type SalesType } from "./components/SalesStatusFilter";
 import { SalesStatusGrid } from "./components/SalesStatusGrid";
 import { formatAmount } from "@/lib/format";
+import { DEFAULT_SEGMENT, type Segment } from "@/lib/constants";
 import type { SalesStatusRow, SalesStatusSummary } from "@/types/sales-status";
+import { UserMessageError, readApiError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 function getDefaultDateRange() {
   const now = new Date();
@@ -28,6 +30,7 @@ export default function SalesStatusPage() {
   const [salesType, setSalesType] = useState<SalesType>("all");
   const [sido, setSido] = useState("");
   const [sigun, setSigun] = useState("");
+  const [segment, setSegment] = useState<Segment>(DEFAULT_SEGMENT);
   const [rows, setRows] = useState<SalesStatusRow[]>([]);
   const [summary, setSummary] = useState<SalesStatusSummary | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -55,12 +58,12 @@ export default function SalesStatusPage() {
       try {
         const cardcode = customer?.cardcode ?? null;
         const currentOffset = isLoadMore ? offset : 0;
-        let url = `/api/sales-status?start=${startDate}&end=${endDate}&salesType=${salesType}&offset=${currentOffset}&limit=100`;
+        let url = `/api/sales-status?start=${startDate}&end=${endDate}&salesType=${salesType}&offset=${currentOffset}&limit=100&segment=${encodeURIComponent(segment)}`;
         if (cardcode) url += `&cardcode=${encodeURIComponent(cardcode)}`;
         if (sido) url += `&sido=${encodeURIComponent(sido)}`;
         if (sigun) url += `&sigun=${encodeURIComponent(sigun)}`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("판매 자료를 불러오지 못했어요.")));
         const data = await res.json();
         if (isLoadMore) {
           setRows((prev) => [...prev, ...(data.rows ?? [])]);
@@ -79,7 +82,7 @@ export default function SalesStatusPage() {
           setSummary(null);
           setSapFetchFailed(false);
         }
-        const msg = e instanceof Error ? e.message : "조회 실패";
+        const msg = toUserMessage(e, retryMessage("판매 자료를 불러오지 못했어요."));
         if (!isLoadMore) {
           modal.open({ type: "error", message: msg });
         }
@@ -87,7 +90,7 @@ export default function SalesStatusPage() {
         setLoading(false);
       }
     },
-    [startDate, endDate, salesType, customer?.cardcode, sido, sigun, offset, modal]
+    [startDate, endDate, salesType, customer?.cardcode, sido, sigun, segment, offset, modal]
   );
 
   const handleLoad = useCallback(() => {
@@ -134,6 +137,8 @@ export default function SalesStatusPage() {
           sigun={sigun}
           onSidoChange={(v) => { setSido(v); setSigun(""); }}
           onSigunChange={setSigun}
+          segment={segment}
+          onSegmentChange={setSegment}
           onLoad={handleLoad}
           loading={loading}
         />

@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
+import { UserMessageError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 interface CustomerManageRow {
   cardcode: string;
@@ -128,7 +129,7 @@ export function CustomersPageClient({ initialRows }: Props) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null) as { error?: string } | null;
-        throw new Error(data?.error ?? "저장 중 오류가 발생했습니다.");
+        throw new UserMessageError(data?.error ?? retryMessage("거래처 정보를 저장하지 못했어요."));
       }
 
       setDirty(new Set());
@@ -136,8 +137,7 @@ export function CustomersPageClient({ initialRows }: Props) {
       // 전부 저장된 경우에만 서버 값으로 다시 불러옴
       router.refresh();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.";
-      setSaveResult({ type: "error", message: `저장 실패: ${message}` });
+      setSaveResult({ type: "error", message: toUserMessage(e, retryMessage("거래처 정보를 저장하지 못했어요.")) });
     } finally {
       setSaving(false);
     }
@@ -192,7 +192,7 @@ export function CustomersPageClient({ initialRows }: Props) {
           <span className="text-sm text-gray-500">총 {rows.length}개 · 조회 {filteredRows.length}개</span>
           {dirty.size > 0 && <span className="text-sm text-amber-600">수정 {dirty.size}건</span>}
           {saveResult && (
-            <span className={`text-sm ${saveResult.type === "ok" ? "text-green-600" : "text-red-600"}`}>
+            <span className={`text-sm whitespace-pre-line ${saveResult.type === "ok" ? "text-green-600" : "text-amber-700"}`}>
               {saveResult.message}
             </span>
           )}

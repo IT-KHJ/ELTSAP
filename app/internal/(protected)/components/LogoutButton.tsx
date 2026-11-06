@@ -24,7 +24,7 @@ export function LogoutButton() {
         router.refresh();
       } catch (error) {
         console.error('Logout error:', error);
-        await modal.open({ type: 'error', message: '로그아웃 중 오류가 발생했습니다.' });
+        await modal.open({ type: 'error', message: '로그아웃하지 못했어요.\n잠시 후 다시 시도하세요.' });
       }
     }
   };

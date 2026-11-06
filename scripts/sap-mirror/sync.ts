@@ -5,7 +5,8 @@
  *   init    초기 적재 (마스터 → 거래처별 문서/입금/분개). 중단 후 재실행 시 이어서 진행
  *           --customer C001201[,C...]  지정 거래처만 (파일럿/추가 적재)
  *   hourly  신규 문서(기본키 기준) + 최근 31일 전기분 중 변경 문서
- *   daily   최근 400일 전기분 중 변경 문서 + 마스터 변경분 + 신규 ELT 거래처 적재 + 최근 3개월 대사
+ *   daily   최근 400일 전기분 중 변경 문서 + 마스터 변경분 + 신규 대상 거래처 적재 + 최근 3개월 대사
+ *   대상 거래처: schema.json segments(ELT, 중고등). 매시간은 등록부 기준, 매일/매주/init은 SAP 조건·활동 여부로 갱신
  *   weekly  전체 기간 변경 문서 + 마스터 전체 갱신/정리 + 최근 3개월 대사
  *   recon   대사만 (월별 건수/금액 SAP vs Supabase). 기본 최근 3개월, --full 전체 기간(거래처 1곳씩 조회)
  *   reload  --tables ODLN[,ORCT,JDT1,MASTERS] [--customer ...]  지정 테이블 재적재 (컬럼 추가 후 등)
@@ -77,11 +78,43 @@ class MirrorSync {
     return r[0].d;
   }
 
-  private async eltCustomers(): Promise<string[]> {
-    const r = await this.sap.query<{ c: string }>(
-      `SELECT CardCode AS c FROM OCRD WHERE ${this.spec.eltCustomerFilter} ORDER BY CardCode`
-    );
-    return r.map((x) => x.c);
+  /**
+   * 사업부별 대상 거래처 (schema.json segments).
+   * activeYears가 있는 사업부는 휴면 거래처 제외: 잔액이 있거나 최근 N년 안에 송장·납품·입금이 있는 거래처,
+   * 그리고 이미 등록된 거래처(한 번 들어오면 조건을 벗어날 때까지 유지).
+   * checkActivity=false(매시간)이면 SAP 거래 조회 없이 등록부의 기존 대상만 유지
+   */
+  private async targetCustomers(checkActivity: boolean): Promise<{ cardcode: string; segment: string }[]> {
+    const registry = await this.w.getCustomers();
+    const out: { cardcode: string; segment: string }[] = [];
+    for (const s of this.spec.segments) {
+      const kept = new Set(registry.filter((c) => c.elt && c.segment === s.segment).map((c) => c.cardcode));
+      if (s.activeYears && !checkActivity) {
+        out.push(...[...kept].sort().map((cardcode) => ({ cardcode, segment: s.segment })));
+        continue;
+      }
+      const cands = await this.sap.query<{ c: string; b: string | null }>(
+        `SELECT CardCode AS c, CONVERT(varchar(50), Balance) AS b FROM OCRD WHERE ${s.customerFilter} ORDER BY CardCode`
+      );
+      let codes = cands.map((x) => x.c);
+      if (s.activeYears) {
+        const active = new Set(cands.filter((x) => Number(x.b ?? 0) !== 0 || kept.has(x.c)).map((x) => x.c));
+        const from = addDays(await this.sapToday(), -365 * s.activeYears);
+        for (const table of ["OINV", "ODLN", "ORCT"]) {
+          for (const chunk of chunks(codes.filter((c) => !active.has(c)), HEADER_CHUNK)) {
+            const r = await this.sap.query<{ c: string }>(
+              `SELECT DISTINCT CardCode AS c FROM ${table} WHERE CardCode IN ${inList(chunk)} AND DocDate >= @from`,
+              [["from", sql.VarChar(8), ymd8(from)]]
+            );
+            for (const x of r) active.add(x.c);
+          }
+        }
+        log(`${s.segment}: 조건 해당 ${codes.length}곳 중 활동 ${active.size}곳(잔액 또는 ${from} 이후 거래)`);
+        codes = codes.filter((c) => active.has(c));
+      }
+      out.push(...codes.map((cardcode) => ({ cardcode, segment: s.segment })));
+    }
+    return out;
   }
 
   private async maxKey(table: string, key: string): Promise<number> {
@@ -211,8 +244,8 @@ class MirrorSync {
 
   async init(opts: { customers?: string[]; tables?: string[] }): Promise<number> {
     const today = await this.sapToday();
-    const elt = await this.eltCustomers();
-    await this.w.syncCustomerRegistry(elt);
+    const targets = await this.targetCustomers(true);
+    await this.w.syncCustomerRegistry(targets);
     await this.ensureWatermarks(today);
     const want = (name: string) => !opts.tables || opts.tables.includes(name);
     const done = await this.w.getProgress();
@@ -227,7 +260,7 @@ class MirrorSync {
 
     const registry = await this.w.getCustomers();
     const loaded = new Set(registry.filter((c) => c.loaded_at).map((c) => c.cardcode));
-    const customers = opts.customers ?? elt;
+    const customers = opts.customers ?? targets.map((t) => t.cardcode);
     for (const [i, c] of customers.entries()) {
       log(`거래처 ${c} (${i + 1}/${customers.length})`);
       for (const [header, line] of DOC_FAMILIES) {
@@ -269,8 +302,7 @@ class MirrorSync {
 
   async incremental(tier: Tier): Promise<number> {
     const today = await this.sapToday();
-    const elt = await this.eltCustomers();
-    await this.w.syncCustomerRegistry(elt);
+    await this.w.syncCustomerRegistry(await this.targetCustomers(tier !== "hourly"));
     const registry = await this.w.getCustomers();
     const loaded = registry.filter((c) => c.loaded_at).map((c) => c.cardcode);
     if (!loaded.length) {
@@ -350,11 +382,11 @@ class MirrorSync {
     }
 
     if (tier !== "hourly") {
-      // 전체 초기 적재가 끝난 뒤에만 새로 ELT에 편입된 거래처를 자동 적재 (파일럿 단계에서 전체 적재가 시작되지 않도록)
+      // 전체 초기 적재가 끝난 뒤에만 새로 대상에 편입된 거래처를 자동 적재 (파일럿 단계에서 전체 적재가 시작되지 않도록)
       if ((await this.w.getState("INIT@all")) != null) {
         const pending = registry.filter((c) => c.elt && !c.loaded_at).map((c) => c.cardcode);
         if (pending.length) {
-          log(`신규 ELT 거래처 적재: ${pending.slice(0, AUTO_INIT_PER_RUN).join(", ")}${pending.length > AUTO_INIT_PER_RUN ? " 외" : ""}`);
+          log(`신규 대상 거래처 적재: ${pending.slice(0, AUTO_INIT_PER_RUN).join(", ")}${pending.length > AUTO_INIT_PER_RUN ? " 외" : ""}`);
           total += await this.init({ customers: pending.slice(0, AUTO_INIT_PER_RUN) });
         }
       }

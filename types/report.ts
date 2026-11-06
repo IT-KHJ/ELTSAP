@@ -68,6 +68,8 @@ export interface TopBrandRow {
 export interface ReportData {
   cardcode: string;
   cardname: string;
+  /** 거래처 사업부 (ELT / 중고등). 중고등이면 "지사명", "중고등" 표기 */
+  segment: string | null;
   startDate: string;
   endDate: string;
   previousStartDate: string;
@@ -84,6 +86,9 @@ export interface ReportData {
   };
   salesByCategory: SalesByCategory[];
   returnsByCategory: SalesByCategory[];
+  /** 중고등 과목별 하위 행(영어/수학/국어). 수학·국어 데이터가 없으면 빈 배열. 합계(summary)에는 포함하지 않음 */
+  subjectSales: SalesByCategory[];
+  subjectReturns: SalesByCategory[];
   inamt: InamtMonthly;
   giftQty: GiftQtyMonthly;
   topItems: TopItemRow[];

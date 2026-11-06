@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
+import type { Segment } from "@/lib/constants";
+import { SegmentRadio } from "../../components/SegmentRadio";
 
 export type CustomerOption = { cardcode: string; cardname: string | null };
 
@@ -24,6 +26,8 @@ interface SalesStatusFilterProps {
   sigun: string;
   onSidoChange: (v: string) => void;
   onSigunChange: (v: string) => void;
+  segment: Segment;
+  onSegmentChange: (v: Segment) => void;
   onLoad: () => void;
   loading: boolean;
 }
@@ -45,6 +49,8 @@ export function SalesStatusFilter({
   sigun,
   onSidoChange,
   onSigunChange,
+  segment,
+  onSegmentChange,
   onLoad,
   loading,
 }: SalesStatusFilterProps) {
@@ -187,6 +193,7 @@ export function SalesStatusFilter({
               </label>
             </div>
           </div>
+          <SegmentRadio value={segment} onChange={onSegmentChange} />
         </div>
         <div className="flex items-center gap-2">
           <button

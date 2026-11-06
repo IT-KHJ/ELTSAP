@@ -1,6 +1,8 @@
 "use client";
 
 import { SIDO_LIST, SIGUN_BY_SIDO } from "@/lib/address-data";
+import type { Segment } from "@/lib/constants";
+import { SegmentRadio } from "../../components/SegmentRadio";
 
 export type SalesType = "all" | "sales" | "return";
 
@@ -15,6 +17,8 @@ interface SalesStatusFilterBProps {
   sigun: string;
   onSidoChange: (v: string) => void;
   onSigunChange: (v: string) => void;
+  segment: Segment;
+  onSegmentChange: (v: Segment) => void;
   onLoad: () => void;
   loading: boolean;
   onExcelDownload?: () => void;
@@ -32,6 +36,8 @@ export function SalesStatusFilterB({
   sigun,
   onSidoChange,
   onSigunChange,
+  segment,
+  onSegmentChange,
   onLoad,
   loading,
   onExcelDownload,
@@ -124,6 +130,7 @@ export function SalesStatusFilterB({
               </label>
             </div>
           </div>
+          <SegmentRadio value={segment} onChange={onSegmentChange} />
         </div>
         <div className="flex items-center gap-2">
           <button

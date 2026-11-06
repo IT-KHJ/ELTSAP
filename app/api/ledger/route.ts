@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLedger } from "@/lib/ledger-queries";
+import { serverErrorResponse } from "@/lib/api-error";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -13,18 +14,17 @@ export async function GET(request: NextRequest) {
 
     if (!cardcode || !start || !end || !DATE_RE.test(start) || !DATE_RE.test(end)) {
       return NextResponse.json(
-        { error: "cardcode, start, end 파라미터가 필요합니다. (YYYY-MM-DD)" },
+        { error: "거래처와 조회 기간을 선택하세요." },
         { status: 400 }
       );
     }
     if (start > end) {
-      return NextResponse.json({ error: "시작일이 종료일보다 늦습니다." }, { status: 400 });
+      return NextResponse.json({ error: "시작일이 종료일보다 늦어요. 기간을 다시 선택하세요." }, { status: 400 });
     }
 
     const result = await getLedger(cardcode, start, end);
     return NextResponse.json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/ledger", "거래원장을 불러오지 못했어요.");
   }
 }

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useModal } from "@/lib/components/ModalProvider";
+import { DEFAULT_SEGMENT, type Segment } from "@/lib/constants";
 import { DashboardFilter, type CustomerOption } from "./components/DashboardFilter";
 import { ExecutiveSummary } from "./components/ExecutiveSummary";
 import { RankingTable } from "./components/RankingTable";
@@ -17,6 +18,7 @@ import type {
   DashboardInsightsResponse,
   ParetoRow,
 } from "@/types/dashboard";
+import { UserMessageError, readApiError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 /** report page getDefaultPeriod와 동일 */
 function getDefaultPeriod() {
@@ -48,6 +50,7 @@ function DashboardContent() {
   const [options, setOptions] = useState<CustomerOption[]>([]);
   const [sido, setSido] = useState("");
   const [sigun, setSigun] = useState("");
+  const [segment, setSegment] = useState<Segment>(DEFAULT_SEGMENT);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [ranking, setRanking] = useState<DashboardRankingResponse | null>(null);
@@ -89,21 +92,22 @@ function DashboardContent() {
         const order = overrides?.order ?? rankingOrder;
         const page = overrides?.page ?? rankingPage;
 
+        const segParam = `&segment=${encodeURIComponent(segment)}`;
         const fetchOpts: RequestInit = { cache: "no-store" };
         const [summaryRes, rankingRes, paretoRes, insightsRes] = await Promise.all([
-          fetch(`/api/dashboard/summary?start=${startParam}&end=${endParam}`, fetchOpts),
+          fetch(`/api/dashboard/summary?start=${startParam}&end=${endParam}${segParam}`, fetchOpts),
           fetch(
-            `/api/dashboard/ranking?start=${startParam}&end=${endParam}&sortBy=${sortBy}&order=${order}&page=${page}&limit=10${cardParam ? `&cardcode=${encodeURIComponent(cardParam)}` : ""}${sido ? `&sido=${encodeURIComponent(sido)}` : ""}${sigun ? `&sigun=${encodeURIComponent(sigun)}` : ""}`,
+            `/api/dashboard/ranking?start=${startParam}&end=${endParam}${segParam}&sortBy=${sortBy}&order=${order}&page=${page}&limit=10${cardParam ? `&cardcode=${encodeURIComponent(cardParam)}` : ""}${sido ? `&sido=${encodeURIComponent(sido)}` : ""}${sigun ? `&sigun=${encodeURIComponent(sigun)}` : ""}`,
             fetchOpts
           ),
-          fetch(`/api/dashboard/pareto?start=${startParam}&end=${endParam}`, fetchOpts),
-          fetch(`/api/dashboard/insights?start=${startParam}&end=${endParam}`, fetchOpts),
+          fetch(`/api/dashboard/pareto?start=${startParam}&end=${endParam}${segParam}`, fetchOpts),
+          fetch(`/api/dashboard/insights?start=${startParam}&end=${endParam}${segParam}`, fetchOpts),
         ]);
 
-        if (!summaryRes.ok) throw new Error(await summaryRes.text());
-        if (!rankingRes.ok) throw new Error(await rankingRes.text());
-        if (!paretoRes.ok) throw new Error(await paretoRes.text());
-        if (!insightsRes.ok) throw new Error(await insightsRes.text());
+        if (!summaryRes.ok) throw new UserMessageError(await readApiError(summaryRes, retryMessage("대시보드 자료를 불러오지 못했어요.")));
+        if (!rankingRes.ok) throw new UserMessageError(await readApiError(rankingRes, retryMessage("대시보드 자료를 불러오지 못했어요.")));
+        if (!paretoRes.ok) throw new UserMessageError(await readApiError(paretoRes, retryMessage("대시보드 자료를 불러오지 못했어요.")));
+        if (!insightsRes.ok) throw new UserMessageError(await readApiError(insightsRes, retryMessage("대시보드 자료를 불러오지 못했어요.")));
 
         const [s, r, p, i] = await Promise.all([
           summaryRes.json(),
@@ -118,7 +122,7 @@ function DashboardContent() {
       } catch (e) {
         await modal.open({
           type: "error",
-          message: e instanceof Error ? e.message : "대시보드 조회 실패",
+          message: toUserMessage(e, retryMessage("대시보드 자료를 불러오지 못했어요.")),
         });
       } finally {
         setLoading(false);
@@ -132,6 +136,7 @@ function DashboardContent() {
       customer?.cardcode,
       sido,
       sigun,
+      segment,
       rankingSortBy,
       rankingOrder,
       rankingPage,
@@ -166,13 +171,13 @@ function DashboardContent() {
       const res = await fetch(
         `/api/dashboard/customer/${encodeURIComponent(row.cardcode)}?start=${start}&end=${end}`
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("거래처 상세 자료를 불러오지 못했어요.")));
       const data = (await res.json()) as CustomerDetailResponse;
       setDetailData(data);
     } catch (e) {
       await modal.open({
         type: "error",
-        message: e instanceof Error ? e.message : "상세 조회 실패",
+        message: toUserMessage(e, retryMessage("거래처 상세 자료를 불러오지 못했어요.")),
       });
       setDetailCardcode(null);
     } finally {
@@ -246,6 +251,8 @@ function DashboardContent() {
           sigun={sigun}
           onSidoChange={(v) => { setSido(v); setSigun(""); }}
           onSigunChange={setSigun}
+          segment={segment}
+          onSegmentChange={setSegment}
           onLoad={loadDashboard}
           loading={loading}
           hasData={!!summary}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   getSalesByCategory,
+  getSubjectBreakdown,
   getInamtMonthly,
   getGiftQtyMonthly,
   getTopItems,
@@ -9,6 +10,8 @@ import {
 } from "@/lib/report-queries";
 import { formatChangePercent } from "@/lib/format";
 import type { ReportData } from "@/types/report";
+import type { Segment } from "@/lib/constants";
+import { serverErrorResponse } from "@/lib/api-error";
 
 /** 로컬 날짜 기준 YYYY-MM-DD (toISOString은 UTC라 KST에서 연도/일이 어긋남) */
 function toLocalDateString(date: Date): string {
@@ -27,10 +30,10 @@ export async function GET(request: NextRequest) {
     const endParam = searchParams.get("end"); // yyyy-mm
 
     if (!cardcode?.trim()) {
-      return NextResponse.json({ error: "cardcode가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "거래처를 선택하세요." }, { status: 400 });
     }
     if (!startParam || !endParam) {
-      return NextResponse.json({ error: "start, end (yyyy-mm)가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "조회 기간을 선택하세요." }, { status: 400 });
     }
 
     const [sy, sm] = startParam.split("-").map(Number);
@@ -43,14 +46,18 @@ export async function GET(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const { data: cust } = await admin
       .from("rpt_customer")
-      .select("cardname")
+      .select("cardname, segment")
       .eq("cardcode", cardcode)
       .maybeSingle();
 
     const cardname = (cust as { cardname?: string } | null)?.cardname ?? cardcode;
+    const segment = ((cust as { segment?: string | null } | null)?.segment ?? null) as Segment | null;
 
-    const [salesResult, inamt, giftQty, topItems, topBrands] = await Promise.all([
-      getSalesByCategory(cardcode, startDate, endDate, prevStartDate, prevEndDate),
+    const [salesResult, subjects, inamt, giftQty, topItems, topBrands] = await Promise.all([
+      getSalesByCategory(cardcode, startDate, endDate, prevStartDate, prevEndDate, segment),
+      segment === "중고등"
+        ? getSubjectBreakdown(cardcode, startDate, endDate, prevStartDate, prevEndDate)
+        : Promise.resolve({ subjectSales: [], subjectReturns: [] }),
       getInamtMonthly(cardcode, startDate, endDate, prevStartDate, prevEndDate),
       getGiftQtyMonthly(cardcode, startDate, endDate, prevStartDate, prevEndDate),
       getTopItems(cardcode, startDate, endDate, prevStartDate, prevEndDate, 20),
@@ -76,6 +83,7 @@ export async function GET(request: NextRequest) {
     const report: ReportData = {
       cardcode,
       cardname,
+      segment,
       startDate,
       endDate,
       previousStartDate: prevStartDate,
@@ -92,6 +100,8 @@ export async function GET(request: NextRequest) {
       },
       salesByCategory,
       returnsByCategory,
+      subjectSales: subjects.subjectSales,
+      subjectReturns: subjects.subjectReturns,
       inamt,
       giftQty,
       topItems: topItems.map((r) => ({
@@ -104,7 +114,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(report);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "보고서 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/report", "보고서를 불러오지 못했어요.");
   }
 }

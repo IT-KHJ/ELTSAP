@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { serverErrorResponse } from "@/lib/api-error";
 
 function isAdminUser(user: { email?: string | null; user_metadata?: unknown; app_metadata?: unknown } | null): boolean {
   if (!user) return false;
@@ -20,8 +21,8 @@ export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 조회할 수 있습니다." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "로그인이 필요해요. 다시 로그인하세요." }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 볼 수 있는 화면이에요." }, { status: 403 });
 
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
@@ -32,8 +33,7 @@ export async function GET() {
     if (error) throw error;
     return NextResponse.json(data ?? []);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "거래처 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/customers/manage", "거래처 목록을 불러오지 못했어요.");
   }
 }
 
@@ -46,13 +46,13 @@ export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 수정할 수 있습니다." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "로그인이 필요해요. 다시 로그인하세요." }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 수정할 수 있어요." }, { status: 403 });
 
     const body = await request.json() as Record<string, unknown>;
     const cardcode = body.cardcode;
     if (!cardcode || typeof cardcode !== "string") {
-      return NextResponse.json({ error: "cardcode가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "거래처를 선택하세요." }, { status: 400 });
     }
 
     const updates: Partial<Record<EditableField, string | null>> = {};
@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "수정할 필드가 없습니다." }, { status: 400 });
+      return NextResponse.json({ error: "저장할 변경 내용이 없어요." }, { status: 400 });
     }
 
     const admin = getSupabaseAdmin();
@@ -75,8 +75,7 @@ export async function PATCH(request: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "거래처 수정 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/customers/manage", "거래처 정보를 저장하지 못했어요.");
   }
 }
 
@@ -85,19 +84,19 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 수정할 수 있습니다." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "로그인이 필요해요. 다시 로그인하세요." }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: "관리자만 수정할 수 있어요." }, { status: 403 });
 
     const body = await request.json() as { rows?: unknown };
     if (!Array.isArray(body.rows) || body.rows.length === 0) {
-      return NextResponse.json({ error: "수정할 거래처가 없습니다." }, { status: 400 });
+      return NextResponse.json({ error: "저장할 변경 내용이 없어요." }, { status: 400 });
     }
 
     const records: ({ cardcode: string } & Record<EditableField, string | null>)[] = [];
     for (const item of body.rows as Record<string, unknown>[]) {
       const cardcode = item?.cardcode;
       if (!cardcode || typeof cardcode !== "string") {
-        return NextResponse.json({ error: "cardcode가 필요합니다." }, { status: 400 });
+        return NextResponse.json({ error: "거래처를 선택하세요." }, { status: 400 });
       }
       // 모든 행이 같은 컬럼을 갖도록 3개 필드를 항상 채움
       const record = { cardcode } as { cardcode: string } & Record<EditableField, string | null>;
@@ -116,7 +115,6 @@ export async function PUT(request: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ ok: true, count: records.length });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "거래처 수정 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/customers/manage", "거래처 정보를 저장하지 못했어요.");
   }
 }

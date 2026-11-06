@@ -85,7 +85,7 @@ export default async function ProtectedLayout({
                 className="object-contain shrink-0"
                 priority
               />
-              <span className="font-bold text-gray-900 text-sm">ELT SAP 데이터</span>
+              <span className="font-bold text-gray-900 text-sm">SAP 데이터</span>
             </Link>
           </div>
           <nav className="flex-1 py-4 overflow-y-auto">

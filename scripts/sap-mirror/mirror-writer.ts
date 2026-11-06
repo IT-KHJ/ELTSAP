@@ -216,20 +216,22 @@ export class MirrorWriter {
 
   // ---- 거래처 등록부
 
-  async getCustomers(): Promise<{ cardcode: string; elt: boolean; loaded_at: string | null }[]> {
-    const { data, error } = await this.sb.from("sap_mirror_customers").select("cardcode, elt, loaded_at");
+  async getCustomers(): Promise<{ cardcode: string; elt: boolean; segment: string | null; loaded_at: string | null }[]> {
+    const { data, error } = await this.sb.from("sap_mirror_customers").select("cardcode, elt, segment, loaded_at");
     if (error) throw new Error(`sap_mirror_customers 조회 실패: ${error.message}`);
     return data ?? [];
   }
 
-  /** SAP 현재 ELT 거래처 목록을 등록부에 반영 (새 거래처 추가, 빠진 거래처는 elt=false로 표시, 데이터는 보관) */
-  async syncCustomerRegistry(eltCodes: string[]): Promise<void> {
+  /** SAP 현재 대상 거래처(사업부 포함)를 등록부에 반영 (새 거래처 추가, 빠진 거래처는 elt=false로 표시, 데이터는 보관) */
+  async syncCustomerRegistry(targets: { cardcode: string; segment: string }[]): Promise<void> {
     const now = new Date().toISOString();
     const existing = await this.getCustomers();
-    const elt = new Set(eltCodes);
+    const inScope = new Set(targets.map((t) => t.cardcode));
     const rows = [
-      ...eltCodes.map((c) => ({ cardcode: c, elt: true, last_seen_at: now })),
-      ...existing.filter((c) => !elt.has(c.cardcode) && c.elt).map((c) => ({ cardcode: c.cardcode, elt: false })),
+      ...targets.map((t) => ({ cardcode: t.cardcode, elt: true, segment: t.segment, last_seen_at: now })),
+      ...existing
+        .filter((c) => !inScope.has(c.cardcode) && c.elt)
+        .map((c) => ({ cardcode: c.cardcode, elt: false, segment: c.segment })),
     ];
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await this.sb.from("sap_mirror_customers").upsert(rows.slice(i, i + 500), { onConflict: "cardcode" });

@@ -5,8 +5,10 @@ import { useModal } from "@/lib/components/ModalProvider";
 import { SalesStatusFilterB, type SalesType } from "./components/SalesStatusFilterB";
 import { SalesStatusGridGrouped } from "./components/SalesStatusGridGrouped";
 import { formatAmount } from "@/lib/format";
+import { DEFAULT_SEGMENT, type Segment } from "@/lib/constants";
 import type { SalesStatusGroupedRow, SalesStatusDetailRow } from "@/lib/orders-queries";
 import { buildSalesStatusGroupedExcel } from "@/lib/sales-status-grouped-excel";
+import { UserMessageError, readApiError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 function getDefaultDateRange() {
   const now = new Date();
@@ -33,6 +35,7 @@ export default function SalesStatusPageB() {
   const [salesType, setSalesType] = useState<SalesType>("all");
   const [sido, setSido] = useState("");
   const [sigun, setSigun] = useState("");
+  const [segment, setSegment] = useState<Segment>(DEFAULT_SEGMENT);
   const [groupedRows, setGroupedRows] = useState<SalesStatusGroupedRow[]>([]);
   const [sapFetchFailed, setSapFetchFailed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,7 +56,7 @@ export default function SalesStatusPageB() {
         const res = await fetch(
           `/api/sales-status-detail?start=${startDate}&end=${endDate}&cardcode=${encodeURIComponent(basecard)}&salesType=${salesType}`
         );
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("판매 상세 자료를 불러오지 못했어요.")));
         const data = await res.json();
         setDetailRows((prev) => ({ ...prev, [basecard]: data.rows ?? [] }));
       } catch {
@@ -91,11 +94,11 @@ export default function SalesStatusPageB() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `/api/sales-status-grouped?start=${startDate}&end=${endDate}&salesType=${salesType}`;
+      let url = `/api/sales-status-grouped?start=${startDate}&end=${endDate}&salesType=${salesType}&segment=${encodeURIComponent(segment)}`;
       if (sido) url += `&sido=${encodeURIComponent(sido)}`;
       if (sigun) url += `&sigun=${encodeURIComponent(sigun)}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("판매 자료를 불러오지 못했어요.")));
       const data = await res.json();
       const rows = (data.rows ?? []) as SalesStatusGroupedRow[];
       setGroupedRows(rows);
@@ -117,12 +120,12 @@ export default function SalesStatusPageB() {
       setExpandedBasecards(new Set());
       setDetailRows({});
       setDetailLoading({});
-      const msg = e instanceof Error ? e.message : "조회 실패";
+      const msg = toUserMessage(e, retryMessage("판매 자료를 불러오지 못했어요."));
       modal.open({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, salesType, sido, sigun, modal]);
+  }, [startDate, endDate, salesType, sido, sigun, segment, modal]);
 
   const summary = groupedRows.length > 0 ? computeSummary(groupedRows) : null;
 
@@ -174,7 +177,7 @@ export default function SalesStatusPageB() {
       if ((e as Error).name === "AbortError") return;
       await modal.open({
         type: "error",
-        message: e instanceof Error ? e.message : "엑셀 다운로드 실패",
+        message: toUserMessage(e, retryMessage("엑셀 파일을 만들지 못했어요.")),
       });
     }
   }, [
@@ -210,6 +213,8 @@ export default function SalesStatusPageB() {
           sigun={sigun}
           onSidoChange={(v) => { setSido(v); setSigun(""); }}
           onSigunChange={setSigun}
+          segment={segment}
+          onSegmentChange={setSegment}
           onLoad={loadData}
           loading={loading}
           onExcelDownload={handleExcelDownload}

@@ -75,8 +75,8 @@ export async function buildReportExcel(data: ReportData): Promise<Blob> {
 
   let row = 1;
 
-  // 총판명
-  ws.getCell(row, 1).value = `총판명 : ${data.cardname}`;
+  // 총판명 (중고등 거래처는 지사명)
+  ws.getCell(row, 1).value = `${data.segment === "중고등" ? "지사명" : "총판명"} : ${data.cardname}`;
   ws.getCell(row, 1).style = { font: { ...BASE_FONT, bold: true, color: { argb: COLORS.text } } };
   row += 2;
 
@@ -201,6 +201,16 @@ export async function buildReportExcel(data: ReportData): Promise<Blob> {
       false
     );
   }
+  // 중고등 과목별 하위 행 (└ 영어/수학/국어)
+  for (const cat of data.subjectSales ?? []) {
+    addCategoryRows(
+      cat.categoryLabel,
+      cat.previousYear as unknown as Record<string, number>,
+      cat.currentYear as unknown as Record<string, number>,
+      COLORS.bgBg,
+      false
+    );
+  }
   row++; // spacer
 
   // OUP 매출
@@ -217,6 +227,15 @@ export async function buildReportExcel(data: ReportData): Promise<Blob> {
 
   // B&G 반품
   for (const cat of data.returnsByCategory.filter((c) => c.categoryCode === CATEGORY_BG)) {
+    addCategoryRows(
+      cat.categoryLabel,
+      cat.previousYear as unknown as Record<string, number>,
+      cat.currentYear as unknown as Record<string, number>,
+      COLORS.bgBg,
+      true
+    );
+  }
+  for (const cat of data.subjectReturns ?? []) {
     addCategoryRows(
       cat.categoryLabel,
       cat.previousYear as unknown as Record<string, number>,

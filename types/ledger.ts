@@ -27,6 +27,8 @@ export interface LedgerTotals {
 export interface LedgerResponse {
   cardcode: string;
   cardname: string;
+  /** 거래처 사업부 (ELT / 중고등) — 화면에 자동 표시 */
+  segment: string | null;
   startDate: string;
   endDate: string;
   rows: LedgerRow[];

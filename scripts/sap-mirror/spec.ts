@@ -27,10 +27,17 @@ export interface TableSpec {
   columns: ColumnSpec[];
 }
 
+/** 사업부별 적재 대상 거래처 조건. activeYears가 있으면 휴면 거래처(잔액 0이고 최근 N년 거래 없음)는 제외 */
+export interface SegmentSpec {
+  segment: string;
+  customerFilter: string;
+  activeYears: number | null;
+}
+
 export interface MirrorSpec {
   version: number;
   prefix: string;
-  eltCustomerFilter: string;
+  segments: SegmentSpec[];
   tables: TableSpec[];
 }
 

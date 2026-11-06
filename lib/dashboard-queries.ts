@@ -1,7 +1,8 @@
 /**
  * 거래처 매출 대시보드용 집계.
  * 기존 report-queries와 완전 분리. Supabase 읽기 전용.
- * 데이터: SAP 원본 미러 기반 rpt_sales_line(송장 - 대변메모, ELT 부서) / rpt_customer (030_add_rpt_sales.sql)
+ * 데이터: SAP 원본 미러 기반 rpt_sales_line(송장 - 대변메모, 사업부 부서) / rpt_customer (030, 038_rpt_segment.sql)
+ * 전 거래처 집계는 거래처 구분(segment: ALL/ELT/중고등) 기준. 거래처 상세는 거래처 1곳이라 구분 불필요
  * - 총매출: totalsumsy > 0 합계
  * - 총반품: totalsumsy < 0 합계 (마이너스 표기)
  * - 순매출: 총매출 + 총반품(음수)
@@ -9,6 +10,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 import { formatChangePercent } from "./format";
+import type { Segment } from "./constants";
 import type {
   DashboardSummary,
   CustomerRankingRow,
@@ -76,6 +78,7 @@ function rpcRowToCardAggregate(row: {
 async function fetchSalesByBasecardFromRpc(
   startDate: string,
   endDate: string,
+  segment: Segment,
   cardcodeFilter?: string
 ): Promise<Map<string, CardAggregate>> {
   const admin = getSupabaseAdmin();
@@ -83,6 +86,7 @@ async function fetchSalesByBasecardFromRpc(
     p_start: startDate,
     p_end: endDate,
     p_basecard: cardcodeFilter?.trim() || null,
+    p_segment: segment,
   });
   const rows = (data ?? []) as Array<{
     basecard: string | null;
@@ -111,13 +115,14 @@ function parseTotalsumsy(v: unknown): number {
 /** Executive Summary: 총매출/총반품은 SQL 집계, 나머지는 기존 로직 */
 export async function getDashboardSummary(
   startDate: string,
-  endDate: string
+  endDate: string,
+  segment: Segment
 ): Promise<DashboardSummary> {
   const admin = getSupabaseAdmin();
 
   const [aggResult, cardAgg] = await Promise.all([
-    admin.rpc("rpt_dashboard_sales_agg", { p_start: startDate, p_end: endDate, p_basecard: null }),
-    fetchSalesByBasecardFromRpc(startDate, endDate),
+    admin.rpc("rpt_dashboard_sales_agg", { p_start: startDate, p_end: endDate, p_basecard: null, p_segment: segment }),
+    fetchSalesByBasecardFromRpc(startDate, endDate, segment),
   ]);
 
   const aggRow = (aggResult.data as { total_sales: number; total_returns: number }[] | null)?.[0];
@@ -134,7 +139,7 @@ export async function getDashboardSummary(
   const prevYearStart = toLocalDateString(new Date(new Date(startDate).getFullYear() - 1, new Date(startDate).getMonth(), 1));
   const prevYearEnd = toLocalDateString(new Date(new Date(endDate).getFullYear() - 1, new Date(endDate).getMonth() + 1, 0));
 
-  const prevYearRes = await admin.rpc("rpt_dashboard_sales_agg", { p_start: prevYearStart, p_end: prevYearEnd, p_basecard: null });
+  const prevYearRes = await admin.rpc("rpt_dashboard_sales_agg", { p_start: prevYearStart, p_end: prevYearEnd, p_basecard: null, p_segment: segment });
   const prevYearRow = (prevYearRes.data as { total_sales: number; total_returns: number }[] | null)?.[0];
   const prevYearNet = (Number(prevYearRow?.total_sales ?? 0) || 0) + (Number(prevYearRow?.total_returns ?? 0) || 0);
 
@@ -158,6 +163,7 @@ export async function getCustomerRanking(
   startDate: string,
   endDate: string,
   options: {
+    segment: Segment;
     cardcode?: string;
     sido?: string;
     sigun?: string;
@@ -165,9 +171,9 @@ export async function getCustomerRanking(
     order?: "asc" | "desc";
     page?: number;
     limit?: number;
-  } = {}
+  }
 ): Promise<{ rows: CustomerRankingRow[]; totalCount: number; page: number; limit: number }> {
-  const { cardcode, sido, sigun, sortBy = "sales", order = "desc", page = 1, limit = 10 } = options;
+  const { segment, cardcode, sido, sigun, sortBy = "sales", order = "desc", page = 1, limit = 10 } = options;
 
   const prevYearStart = toLocalDateString(new Date(new Date(startDate).getFullYear() - 1, new Date(startDate).getMonth(), 1));
   const prevYearEnd = toLocalDateString(new Date(new Date(endDate).getFullYear() - 1, new Date(endDate).getMonth() + 1, 0));
@@ -175,9 +181,9 @@ export async function getCustomerRanking(
   const prevMonthEnd = toLocalDateString(new Date(new Date(endDate).getFullYear(), new Date(endDate).getMonth(), 0));
 
   const [curAgg, prevYearAgg, prevMonthAgg] = await Promise.all([
-    fetchSalesByBasecardFromRpc(startDate, endDate, cardcode),
-    fetchSalesByBasecardFromRpc(prevYearStart, prevYearEnd, cardcode),
-    fetchSalesByBasecardFromRpc(prevMonthStart, prevMonthEnd, cardcode),
+    fetchSalesByBasecardFromRpc(startDate, endDate, segment, cardcode),
+    fetchSalesByBasecardFromRpc(prevYearStart, prevYearEnd, segment, cardcode),
+    fetchSalesByBasecardFromRpc(prevMonthStart, prevMonthEnd, segment, cardcode),
   ]);
 
   const admin = getSupabaseAdmin();
@@ -387,9 +393,10 @@ export async function getCustomerDetail(
 /** Pareto (거래처 매출 집중도) - 상위 20위, aliasname 사용 */
 export async function getParetoData(
   startDate: string,
-  endDate: string
+  endDate: string,
+  segment: Segment
 ): Promise<ParetoRow[]> {
-  const agg = await fetchSalesByBasecardFromRpc(startDate, endDate);
+  const agg = await fetchSalesByBasecardFromRpc(startDate, endDate, segment);
   const admin = getSupabaseAdmin();
 
   const cardcodes = Array.from(agg.keys());
@@ -427,7 +434,8 @@ export async function getParetoData(
 /** Actionable Insights - 매출 급감, 성장, 반품율 높은 (당기 미주문 제거) */
 export async function getDashboardInsights(
   startDate: string,
-  endDate: string
+  endDate: string,
+  segment: Segment
 ): Promise<{
   salesDecline: DashboardInsightRow[];
   highReturnRate: DashboardInsightRow[];
@@ -437,8 +445,8 @@ export async function getDashboardInsights(
   const prevYearEnd = toLocalDateString(new Date(new Date(endDate).getFullYear() - 1, new Date(endDate).getMonth() + 1, 0));
 
   const [curAgg, prevYearAgg] = await Promise.all([
-    fetchSalesByBasecardFromRpc(startDate, endDate),
-    fetchSalesByBasecardFromRpc(prevYearStart, prevYearEnd),
+    fetchSalesByBasecardFromRpc(startDate, endDate, segment),
+    fetchSalesByBasecardFromRpc(prevYearStart, prevYearEnd, segment),
   ]);
 
   const admin = getSupabaseAdmin();

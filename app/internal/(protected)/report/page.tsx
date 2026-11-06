@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, Fragment, useMemo, useRef } from "react";
-import type { ReportData } from "@/types/report";
+import type { ReportData, SalesByCategory } from "@/types/report";
 import { formatAmount, formatChangePercent } from "@/lib/format";
 import { MONTHS, CATEGORY_BG, CATEGORY_OUP } from "@/lib/constants";
 import { useModal } from "@/lib/components/ModalProvider";
@@ -9,6 +9,7 @@ import { FilterPanel, type CustomerOption } from "./components/FilterPanel";
 import { ReportContainer } from "./components/ReportContainer";
 import { buildReportExcel } from "@/lib/report-excel";
 import "./report-print.css";
+import { UserMessageError, readApiError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 function getDefaultPeriod() {
   const now = new Date();
@@ -39,6 +40,8 @@ export default function ReportPage() {
   const [options, setOptions] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ReportData | null>(null);
+  /** 중고등 과목 하위 행 접기/펼치기 상태 (키: subject-└ 수학 등, 값 없으면 기본값) */
+  const [subjectOpen, setSubjectOpen] = useState<Record<string, boolean>>({});
 
   // 거래처 자동완성: 입력이 멈춘 뒤(250ms) 검색하고, 가장 최근 요청의 응답만 반영
   // (응답이 늦게 도착한 이전 검색 결과가 현재 목록을 덮어쓰지 않도록)
@@ -66,11 +69,12 @@ export default function ReportPage() {
       const res = await fetch(
         `/api/report?cardcode=${encodeURIComponent(customer.cardcode)}&start=${start}&end=${end}`
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("보고서를 불러오지 못했어요.")));
       const report = (await res.json()) as ReportData;
+      setSubjectOpen({});
       setData(report);
     } catch (e) {
-      await modal.open({ type: "error", message: e instanceof Error ? e.message : "조회 실패" });
+      await modal.open({ type: "error", message: toUserMessage(e, retryMessage("보고서를 불러오지 못했어요.")) });
     } finally {
       setLoading(false);
     }
@@ -101,7 +105,7 @@ export default function ReportPage() {
       }
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
-      await modal.open({ type: "error", message: e instanceof Error ? e.message : "엑셀 다운로드 실패" });
+      await modal.open({ type: "error", message: toUserMessage(e, retryMessage("엑셀 파일을 만들지 못했어요.")) });
     }
   }, [data, modal]);
 
@@ -154,6 +158,82 @@ export default function ReportPage() {
     <th key={m} className="report-th" style={{ width: "4%" }}>{m}월</th>
   ));
 
+  /**
+   * 중고등 과목별 하위 행(└ 영어/수학/국어) — 중고등 매출/반품 행 바로 아래, 같은 배경색.
+   * 과목명 클릭으로 접기/펼치기(매출·반품 따로). 기본: 영어 펼침, 수학·국어 접힘(접히면 올해 1줄만). 조회 시 기본값으로 초기화
+   */
+  const renderSubjectRows = (cats: SalesByCategory[], isReturn: boolean) => {
+    if (!data) return null;
+    const change = isReturn ? renderChangeForReturns : renderChange;
+    return cats.map((cat) => {
+      const key = `${isReturn ? "subject-return" : "subject"}-${cat.categoryLabel}`;
+      const open = subjectOpen[key] ?? cat.categoryLabel.endsWith("영어");
+      const labelCell = (
+        <td className="report-td report-td-category" rowSpan={open ? 3 : 1} style={{ fontWeight: "normal" }}>
+          <button
+            type="button"
+            onClick={() => setSubjectOpen((s) => ({ ...s, [key]: !open }))}
+            title={open ? "클릭하면 접힙니다" : "클릭하면 펼쳐집니다"}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1 rounded px-1 cursor-pointer hover:bg-black/5 hover:underline"
+          >
+            {cat.categoryLabel}
+            <span className="text-[10px] text-gray-500 print:hidden">{open ? "▾" : "▸"}</span>
+          </button>
+        </td>
+      );
+      if (!open) {
+        return (
+          <tr key={key} className="report-sales-category-bg report-row-current">
+            {labelCell}
+            <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
+            {MONTHS.map((m) => (
+              <td key={m} className="report-td report-td-num">
+                {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
+              </td>
+            ))}
+            <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
+          </tr>
+        );
+      }
+      return (
+      <Fragment key={key}>
+        <tr className="report-row-even report-sales-category-bg">
+          {labelCell}
+          <td className="report-td report-td-gubun">{data.previousStartDate.slice(0, 4)}년</td>
+          {MONTHS.map((m) => (
+            <td key={m} className="report-td report-td-num">
+              {formatAmount((cat.previousYear as unknown as Record<string, number>)[String(m)])}
+            </td>
+          ))}
+          <td className="report-td report-td-num report-td-total">{formatAmount(cat.previousYear.total)}</td>
+        </tr>
+        <tr className="report-sales-category-bg report-row-current">
+          <td className="report-td report-td-gubun">{data.startDate.slice(0, 4)}년</td>
+          {MONTHS.map((m) => (
+            <td key={m} className="report-td report-td-num">
+              {formatAmount((cat.currentYear as unknown as Record<string, number>)[String(m)])}
+            </td>
+          ))}
+          <td className="report-td report-td-num report-td-total">{formatAmount(cat.currentYear.total)}</td>
+        </tr>
+        <tr className="report-row-even report-sales-category-bg report-row-current">
+          <td className="report-td report-td-gubun">증감</td>
+          {MONTHS.map((m) => (
+            <td key={m} className="report-td report-td-num">
+              {change(
+                (cat.currentYear as unknown as Record<string, number>)[String(m)] ?? 0,
+                (cat.previousYear as unknown as Record<string, number>)[String(m)] ?? 0
+              )}
+            </td>
+          ))}
+          <td className="report-td report-td-num report-td-total">{change(cat.currentYear.total, cat.previousYear.total)}</td>
+        </tr>
+      </Fragment>
+      );
+    });
+  };
+
   /** B&G/OUP/채권/증정수량 블록 사이 구분용 빈 행 (기존 행 높이의 절반) */
   const SpacerRow = () => (
     <tr className="report-row-spacer">
@@ -199,7 +279,7 @@ export default function ReportPage() {
         <ReportContainer>
           <div className="mb-1 flex items-start justify-between gap-6">
             <div className="flex flex-col gap-1 shrink-0">
-              <p className="text-2xl font-semibold text-gray-900">총판명 : {data.cardname}</p>
+              <p className="text-2xl font-semibold text-gray-900">{data.segment === "중고등" ? "지사명" : "총판명"} : {data.cardname}</p>
             </div>
             <div className="report-kpi-box border border-gray-200 rounded-lg overflow-hidden bg-[#fafafa] flex-1 min-w-0 max-w-2xl">
               <table className="report-summary-table text-sm w-full table-fixed">
@@ -289,6 +369,7 @@ export default function ReportPage() {
                       </tr>
                     </Fragment>
                   ))}
+                  {renderSubjectRows(data.subjectSales ?? [], false)}
                   <SpacerRow />
                   {/* OUP 매출 */}
                   {data.salesByCategory.filter((c) => c.categoryCode === CATEGORY_OUP).map((cat) => (
@@ -367,6 +448,7 @@ export default function ReportPage() {
                       </tr>
                     </Fragment>
                   ))}
+                  {renderSubjectRows(data.subjectReturns ?? [], true)}
                   {/* OUP 반품 */}
                   {data.returnsByCategory.filter((c) => c.categoryCode === CATEGORY_OUP).map((cat) => (
                     <Fragment key={`return-${cat.categoryCode}`}>

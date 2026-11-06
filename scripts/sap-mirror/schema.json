@@ -1,7 +1,18 @@
 {
  "version": 1,
  "prefix": "sap_",
- "eltCustomerFilter": "GroupCode IN (100,104) AND U_COSTCD = '24021'",
+ "segments": [
+  {
+   "segment": "ELT",
+   "customerFilter": "GroupCode IN (100,104) AND U_COSTCD = '24021'",
+   "activeYears": null
+  },
+  {
+   "segment": "중고등",
+   "customerFilter": "GroupCode IN (100,104) AND U_COSTCD IN ('24022','24023')",
+   "activeYears": 3
+  }
+ ],
  "notes": [
   "이 파일이 원본 미러 계층의 유일한 기준(source of truth)이다.",
   "테이블/컬럼/인덱스 추가: 이 파일 수정 -> npm run mirror:ddl -- <마이그레이션 파일> -> Supabase 적용.",

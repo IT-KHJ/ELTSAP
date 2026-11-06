@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseSegment } from "@/lib/constants";
 import { getCustomerRanking } from "@/lib/dashboard-queries";
+import { serverErrorResponse } from "@/lib/api-error";
 
 function toLocalDateString(date: Date): string {
   const y = date.getFullYear();
@@ -8,7 +10,7 @@ function toLocalDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** GET /api/dashboard/ranking?start=...&end=...&cardcode=...&sortBy=...&order=...&page=...&limit=... */
+/** GET /api/dashboard/ranking?start=...&end=...&segment=...&cardcode=...&sortBy=...&order=...&page=...&limit=... */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10)));
 
     if (!startParam || !endParam) {
-      return NextResponse.json({ error: "start, end (yyyy-mm)가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "조회 기간을 선택하세요." }, { status: 400 });
     }
 
     const [sy, sm] = startParam.split("-").map(Number);
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
     const endDate = toLocalDateString(new Date(ey, em, 0));
 
     const result = await getCustomerRanking(startDate, endDate, {
+      segment: parseSegment(searchParams.get("segment")),
       cardcode,
       sido,
       sigun,
@@ -42,7 +45,6 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "거래처 랭킹 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/dashboard/ranking", "대시보드 자료를 불러오지 못했어요.");
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseSegment } from "@/lib/constants";
 import { getDashboardInsights } from "@/lib/dashboard-queries";
+import { serverErrorResponse } from "@/lib/api-error";
 
 function toLocalDateString(date: Date): string {
   const y = date.getFullYear();
@@ -8,7 +10,7 @@ function toLocalDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** GET /api/dashboard/insights?start=...&end=... */
+/** GET /api/dashboard/insights?start=...&end=...&segment=... */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
     const endParam = searchParams.get("end");
 
     if (!startParam || !endParam) {
-      return NextResponse.json({ error: "start, end (yyyy-mm)가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "조회 기간을 선택하세요." }, { status: 400 });
     }
 
     const [sy, sm] = startParam.split("-").map(Number);
@@ -24,10 +26,9 @@ export async function GET(request: NextRequest) {
     const startDate = toLocalDateString(new Date(sy, sm - 1, 1));
     const endDate = toLocalDateString(new Date(ey, em, 0));
 
-    const insights = await getDashboardInsights(startDate, endDate);
+    const insights = await getDashboardInsights(startDate, endDate, parseSegment(searchParams.get("segment")));
     return NextResponse.json(insights);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "인사이트 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/dashboard/insights", "대시보드 자료를 불러오지 못했어요.");
   }
 }

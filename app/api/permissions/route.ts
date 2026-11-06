@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { serverErrorResponse } from "@/lib/api-error";
 
 function isAdminUser(user: { email?: string | null; user_metadata?: unknown; app_metadata?: unknown } | null): boolean {
   if (!user) return false;
@@ -19,8 +20,8 @@ export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 조회할 수 있습니다.' }, { status: 403 });
+    if (!user) return NextResponse.json({ error: '로그인이 필요해요. 다시 로그인하세요.' }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 볼 수 있는 화면이에요.' }, { status: 403 });
 
     const [profilesRes, menusRes, permsRes] = await Promise.all([
       supabase.from('user_profiles').select('email, display_name').order('email'),
@@ -52,8 +53,7 @@ export async function GET() {
 
     return NextResponse.json({ users, menus });
   } catch (e) {
-    const message = e instanceof Error ? e.message : '권한 조회 중 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/permissions", "사용자 권한 정보를 불러오지 못했어요.");
   }
 }
 
@@ -62,14 +62,14 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 수정할 수 있습니다.' }, { status: 403 });
+    if (!user) return NextResponse.json({ error: '로그인이 필요해요. 다시 로그인하세요.' }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 수정할 수 있어요.' }, { status: 403 });
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim() : '';
     const menuIds = Array.isArray(body.menuIds) ? body.menuIds.filter((id: unknown): id is string => typeof id === 'string') : [];
 
-    if (!email) return NextResponse.json({ error: 'email이 필요합니다.' }, { status: 400 });
+    if (!email) return NextResponse.json({ error: '이메일을 입력하세요.' }, { status: 400 });
 
     const { error: delError } = await supabase.from('user_menu_permissions').delete().eq('email', email);
     if (delError) throw new Error(delError.message);
@@ -82,8 +82,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : '권한 저장 중 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/permissions", "사용자 권한을 저장하지 못했어요.");
   }
 }
 
@@ -92,15 +91,15 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 추가할 수 있습니다.' }, { status: 403 });
+    if (!user) return NextResponse.json({ error: '로그인이 필요해요. 다시 로그인하세요.' }, { status: 401 });
+    if (!isAdminUser(user)) return NextResponse.json({ error: '관리자만 추가할 수 있어요.' }, { status: 403 });
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim() : '';
     const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
 
-    if (!email) return NextResponse.json({ error: 'email이 필요합니다.' }, { status: 400 });
-    if (!displayName) return NextResponse.json({ error: 'displayName이 필요합니다.' }, { status: 400 });
+    if (!email) return NextResponse.json({ error: '이메일을 입력하세요.' }, { status: 400 });
+    if (!displayName) return NextResponse.json({ error: '이름을 입력하세요.' }, { status: 400 });
 
     const { error } = await supabase.from('user_profiles').upsert(
       { email, display_name: displayName },
@@ -110,7 +109,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : '사용자 추가 중 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/permissions", "사용자를 추가하지 못했어요.");
   }
 }

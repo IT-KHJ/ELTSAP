@@ -11,8 +11,12 @@ const num = (v: unknown): number => (v == null || v === "" ? 0 : Number(v));
 export async function getLedger(cardcode: string, startDate: string, endDate: string): Promise<LedgerResponse> {
   const admin = getSupabaseAdminNoCache();
 
-  const { data: cust } = await admin.from("sap_ocrd").select("cardname").eq("cardcode", cardcode).maybeSingle();
+  const [{ data: cust }, { data: reg }] = await Promise.all([
+    admin.from("sap_ocrd").select("cardname").eq("cardcode", cardcode).maybeSingle(),
+    admin.from("sap_mirror_customers").select("segment").eq("cardcode", cardcode).maybeSingle(),
+  ]);
   const cardname = (cust as { cardname?: string } | null)?.cardname ?? cardcode;
+  const segment = (reg as { segment?: string | null } | null)?.segment ?? null;
 
   // 1회 호출로 전체 행(JSON 배열)을 받음 — 행 단위 RPC는 API 1,000행 제한으로 나눠 부를 때마다 원장을 재계산함
   const { data, error } = await admin.rpc("rpt_ledger_json", { p_cardcode: cardcode, p_start: startDate, p_end: endDate });
@@ -41,10 +45,10 @@ export async function getLedger(cardcode: string, startDate: string, endDate: st
     closing: body.length ? body[body.length - 1].balance : opening,
   };
 
-  return { cardcode, cardname, startDate, endDate, rows, totals };
+  return { cardcode, cardname, segment, startDate, endDate, rows, totals };
 }
 
-/** 거래원장 거래처 검색: 미러 초기 적재가 끝난 ELT 거래처만 */
+/** 거래원장 거래처 검색: 미러 초기 적재가 끝난 거래처(ELT·중고등)만 */
 export async function searchLedgerCustomers(q: string): Promise<LedgerCustomerOption[]> {
   const admin = getSupabaseAdminNoCache();
   const { data: loaded, error: e1 } = await admin

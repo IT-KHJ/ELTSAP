@@ -7,6 +7,7 @@ import { buildLedgerExcel } from "@/lib/ledger-excel";
 import { LedgerFilter } from "./components/LedgerFilter";
 import { LedgerGrid } from "./components/LedgerGrid";
 import type { LedgerCustomerOption, LedgerResponse } from "@/types/ledger";
+import { UserMessageError, retryMessage, toUserMessage } from "@/lib/user-error";
 
 /** 기본 조회 기간: 올해 1월 1일 ~ 오늘 (로컬 날짜 기준) */
 function getDefaultDateRange() {
@@ -53,11 +54,11 @@ export default function LedgerPage() {
         `/api/ledger?cardcode=${encodeURIComponent(customer.cardcode)}&start=${startDate}&end=${endDate}`
       );
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.error ?? "조회 실패");
+      if (!res.ok) throw new UserMessageError(body?.error ?? retryMessage("거래원장을 불러오지 못했어요."));
       setData(body as LedgerResponse);
     } catch (e) {
       setData(null);
-      await modal.open({ type: "error", message: e instanceof Error ? e.message : "조회 실패" });
+      await modal.open({ type: "error", message: toUserMessage(e, retryMessage("거래원장을 불러오지 못했어요.")) });
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function LedgerPage() {
       }
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
-      await modal.open({ type: "error", message: e instanceof Error ? e.message : "엑셀 다운로드 실패" });
+      await modal.open({ type: "error", message: toUserMessage(e, retryMessage("엑셀 파일을 만들지 못했어요.")) });
     }
   }, [data, modal]);
 
@@ -134,6 +135,12 @@ export default function LedgerPage() {
             <span className="text-sm text-gray-600">거래처</span>
             <span className="ml-2 font-bold">{data.cardcode} {data.cardname}</span>
           </div>
+          {data.segment && (
+            <div>
+              <span className="text-sm text-gray-600">거래처 구분</span>
+              <span className="ml-2 font-bold">{data.segment}</span>
+            </div>
+          )}
           <div>
             <span className="text-sm text-gray-600">전기이월</span>
             <span className="ml-2 font-bold tabular-nums">{formatAmount(data.totals.opening)}</span>

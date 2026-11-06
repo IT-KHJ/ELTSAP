@@ -1,10 +1,11 @@
 /**
  * 거래처 현황(판매기준/판매집계) 조회.
- * 데이터: SAP 원본 미러 기반 rpt_delivery_line(취소되지 않은 전체 납품, ELT 부서) / rpt_customer (033_add_rpt_delivery.sql)
+ * 데이터: SAP 원본 미러 기반 rpt_delivery_line(취소되지 않은 전체 납품, 사업부 부서) / rpt_customer (033, 038_rpt_segment.sql)
  * 기간 전체 합계·거래처별 합계는 서버 함수(rpt_sales_status_json / rpt_sales_status_grouped)에서 계산.
  */
 
 import { getSupabaseAdmin } from "./supabase";
+import type { Segment } from "./constants";
 import type { SalesStatusRow, SalesStatusSummary, SalesStatusResponse } from "@/types/sales-status";
 
 const PAGE_SIZE = 100;
@@ -73,6 +74,7 @@ export interface GetSalesStatusFromOrdersOptions {
   salesType?: "all" | "sales" | "return";
   offset?: number;
   limit?: number;
+  segment: Segment;
 }
 
 export async function getSalesStatusFromOrders(
@@ -87,6 +89,7 @@ export async function getSalesStatusFromOrders(
     salesType = "all",
     offset = 0,
     limit = PAGE_SIZE,
+    segment,
   } = options;
 
   const admin = getSupabaseAdmin();
@@ -114,6 +117,7 @@ export async function getSalesStatusFromOrders(
     p_sales_type: salesType,
     p_offset: offset,
     p_limit: limit,
+    p_segment: segment,
   });
   if (error) throw new Error(error.message);
 
@@ -146,8 +150,9 @@ export async function getSalesStatusGroupedFromOrders(
   startDate: string,
   endDate: string,
   salesType: "all" | "sales" | "return",
-  sido?: string | null,
-  sigun?: string | null,
+  sido: string | null,
+  sigun: string | null,
+  segment: Segment,
 ): Promise<{ rows: SalesStatusGroupedRow[] }> {
   const admin = getSupabaseAdmin();
 
@@ -169,6 +174,7 @@ export async function getSalesStatusGroupedFromOrders(
     p_end: endDate,
     p_sales_type: salesType,
     p_codes: sidoSigunCodes,
+    p_segment: segment,
   });
   if (error) throw new Error(error.message);
 

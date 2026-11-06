@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSalesStatusDetailFromOrders } from "@/lib/orders-queries";
+import { serverErrorResponse } from "@/lib/api-error";
 
 /** GET: B안 거래처 현황 상세 조회. start, end, cardcode, salesType? (Supabase orders 기반) */
 export async function GET(request: NextRequest) {
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     if (!start || !end || !cardcode) {
       return NextResponse.json(
-        { error: "start, end, cardcode 파라미터가 필요합니다. (YYYY-MM-DD)" },
+        { error: "거래처와 조회 기간을 선택하세요." },
         { status: 400 }
       );
     }
@@ -20,7 +21,6 @@ export async function GET(request: NextRequest) {
     const rows = await getSalesStatusDetailFromOrders(start, end, cardcode, salesType);
     return NextResponse.json({ rows });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverErrorResponse(e, "api/sales-status-detail", "판매 상세 자료를 불러오지 못했어요.");
   }
 }
