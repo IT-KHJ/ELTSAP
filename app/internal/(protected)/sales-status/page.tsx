@@ -5,7 +5,8 @@ import { useModal } from "@/lib/components/ModalProvider";
 import { SalesStatusFilter, type CustomerOption, type SalesType } from "./components/SalesStatusFilter";
 import { SalesStatusGrid } from "./components/SalesStatusGrid";
 import { formatAmount } from "@/lib/format";
-import { DEFAULT_SEGMENT, type Segment } from "@/lib/constants";
+import { DEFAULT_SEGMENT, SEGMENT_OPTIONS, type Segment } from "@/lib/constants";
+import { buildSalesStatusExcel } from "@/lib/sales-status-excel";
 import type { SalesStatusRow, SalesStatusSummary } from "@/types/sales-status";
 import { UserMessageError, readApiError, retryMessage, toUserMessage } from "@/lib/user-error";
 
@@ -37,6 +38,19 @@ export default function SalesStatusPage() {
   const [sapFetchFailed, setSapFetchFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
+  /** 엑셀 준비 중 진행 문구 (null = 대기) */
+  const [excelProgress, setExcelProgress] = useState<string | null>(null);
+  /** 마지막 조회 조건 — 엑셀은 화면에 보이는 결과와 같은 조건으로 만든다 (조회 후 조건만 바꾼 경우 대비) */
+  const lastQueryRef = useRef<{
+    startDate: string;
+    endDate: string;
+    salesType: SalesType;
+    cardcode: string | null;
+    customerLabel: string;
+    sido: string;
+    sigun: string;
+    segment: Segment;
+  } | null>(null);
 
   // 거래처 자동완성: 입력이 멈춘 뒤(250ms) 검색하고, 가장 최근 요청의 응답만 반영
   // (응답이 늦게 도착한 이전 검색 결과가 현재 목록을 덮어쓰지 않도록)
@@ -62,6 +76,13 @@ export default function SalesStatusPage() {
         if (cardcode) url += `&cardcode=${encodeURIComponent(cardcode)}`;
         if (sido) url += `&sido=${encodeURIComponent(sido)}`;
         if (sigun) url += `&sigun=${encodeURIComponent(sigun)}`;
+        if (!isLoadMore) {
+          lastQueryRef.current = {
+            startDate, endDate, salesType, cardcode,
+            customerLabel: customer ? `${customer.cardcode} ${customer.cardname ?? ""}`.trim() : "전체",
+            sido, sigun, segment,
+          };
+        }
         const res = await fetch(url);
         if (!res.ok) throw new UserMessageError(await readApiError(res, retryMessage("판매 자료를 불러오지 못했어요.")));
         const data = await res.json();
@@ -90,7 +111,7 @@ export default function SalesStatusPage() {
         setLoading(false);
       }
     },
-    [startDate, endDate, salesType, customer?.cardcode, sido, sigun, segment, offset, modal]
+    [startDate, endDate, salesType, customer, sido, sigun, segment, offset, modal]
   );
 
   const handleLoad = useCallback(() => {
@@ -101,6 +122,69 @@ export default function SalesStatusPage() {
   const handleLoadMore = useCallback(() => {
     loadData(true);
   }, [loadData]);
+
+  /** 엑셀: 마지막 조회 조건의 전체 행을 5,000행씩 받아서 생성 */
+  const handleExcelDownload = useCallback(async () => {
+    const q = lastQueryRef.current;
+    if (!q || !summary || excelProgress) return;
+    const EXPORT_PAGE = 5000;
+    const fallback = retryMessage("엑셀 파일을 만들지 못했어요.");
+    setExcelProgress("엑셀 준비 중...");
+    try {
+      const all: SalesStatusRow[] = [];
+      let off = 0;
+      for (;;) {
+        let url = `/api/sales-status?export=1&start=${q.startDate}&end=${q.endDate}&salesType=${q.salesType}&offset=${off}&limit=${EXPORT_PAGE}&segment=${encodeURIComponent(q.segment)}`;
+        if (q.cardcode) url += `&cardcode=${encodeURIComponent(q.cardcode)}`;
+        if (q.sido) url += `&sido=${encodeURIComponent(q.sido)}`;
+        if (q.sigun) url += `&sigun=${encodeURIComponent(q.sigun)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new UserMessageError(await readApiError(res, fallback));
+        const data = await res.json();
+        const page = (data.rows ?? []) as SalesStatusRow[];
+        all.push(...page);
+        off += page.length;
+        setExcelProgress(`엑셀 준비 중... ${all.length.toLocaleString()}건`);
+        if (data.hasMore !== true || page.length === 0) break;
+      }
+
+      setExcelProgress("엑셀 파일 만드는 중...");
+      const blob = await buildSalesStatusExcel({
+        rows: all,
+        summary,
+        startDate: q.startDate,
+        endDate: q.endDate,
+        salesType: q.salesType,
+        customerLabel: q.customerLabel,
+        regionLabel: [q.sido || "시/도 전체", q.sigun].filter(Boolean).join(" "),
+        segmentLabel: SEGMENT_OPTIONS.find((o) => o.value === q.segment)?.label ?? q.segment,
+      });
+      const defaultName = `거래처현황_판매기준_${q.startDate}_${q.endDate}.xlsx`;
+
+      const showSave = (window as Window & { showSaveFilePicker?: (o: { suggestedName?: string; types?: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
+      if (typeof showSave === "function") {
+        const handle = await showSave({
+          suggestedName: defaultName,
+          types: [{ description: "Excel 파일", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = defaultName;
+        a.click();
+        URL.revokeObjectURL(objUrl);
+      }
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+      await modal.open({ type: "error", message: toUserMessage(e, fallback) });
+    } finally {
+      setExcelProgress(null);
+    }
+  }, [summary, excelProgress, modal]);
 
   return (
     <div className="sales-status-page">
@@ -141,6 +225,9 @@ export default function SalesStatusPage() {
           onSegmentChange={setSegment}
           onLoad={handleLoad}
           loading={loading}
+          onExcelDownload={handleExcelDownload}
+          excelDisabled={loading || rows.length === 0 || excelProgress !== null}
+          excelLabel={excelProgress ?? undefined}
         />
       </div>
 

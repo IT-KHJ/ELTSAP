@@ -268,7 +268,6 @@ export default function ReportPage() {
           options={options}
           onSearchFocus={() => searchCustomers(searchQuery)}
           onLoadReport={loadReport}
-          onPrint={() => window.print()}
           onExcelDownload={handleExcelDownload}
           loading={loading}
           hasData={!!data}

@@ -3,7 +3,7 @@ import { getSalesStatusFromOrders } from "@/lib/orders-queries";
 import { parseSegment } from "@/lib/constants";
 import { serverErrorResponse } from "@/lib/api-error";
 
-/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit?, segment? (Supabase orders 기반) */
+/** GET: 거래처 현황(판매기준) 조회. start, end, cardcode?, salesType?, offset?, limit?, segment?, export? (Supabase orders 기반) */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
     const sigun = searchParams.get("sigun")?.trim() || null;
     const salesType = (searchParams.get("salesType") as "all" | "sales" | "return") || "all";
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
+    // 화면은 100행씩, 엑셀(export=1)은 전체를 5,000행씩 나눠 받음 (1회 약 1초, 응답 크기 제한 이내)
+    const maxLimit = searchParams.get("export") === "1" ? 5000 : 100;
+    const limit = Math.min(maxLimit, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
     const segment = parseSegment(searchParams.get("segment"));
 
     if (!start || !end) {

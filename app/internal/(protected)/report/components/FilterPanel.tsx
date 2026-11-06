@@ -20,7 +20,6 @@ interface FilterPanelProps {
   options: CustomerOption[];
   onSearchFocus: () => void;
   onLoadReport: () => void;
-  onPrint: () => void;
   onExcelDownload?: () => void;
   loading: boolean;
   hasData: boolean;
@@ -42,7 +41,6 @@ export function FilterPanel({
   options,
   onSearchFocus,
   onLoadReport,
-  onPrint,
   onExcelDownload,
   loading,
   hasData,
@@ -155,14 +153,6 @@ export function FilterPanel({
               엑셀
             </button>
           )}
-          <button
-            type="button"
-            onClick={onPrint}
-            disabled={!hasData}
-            className="h-10 px-5 border border-gray-300 bg-white text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            인쇄
-          </button>
         </div>
       </div>
     </div>
